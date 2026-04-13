@@ -8,6 +8,7 @@ import {
   resetQueue, getAnalytics, getAdvancedAnalytics, getMonthlyAnalytics, getTicketPosition,
   findBestCounter, checkIdleCounters, getCategoryWaitTimes,
   addAudit, clockIn, clockOut,
+  validateLicenseKey, generateLicenseKey,
 } from './store.js'
 
 const app = express()
@@ -31,8 +32,13 @@ function broadcast() {
   io.emit('state:sync', getPublicState())
 }
 
+function isLicensed() {
+  return validateLicenseKey(state.license)
+}
+
 function getPublicState() {
   return {
+    licensed: isLicensed(),
     counters: state.counters,
     categories: state.categories,
     tickets: state.tickets,
@@ -106,6 +112,25 @@ app.get('/api/audit', (_, res) => {
 // ===== Socket.IO =====
 io.on('connection', (socket) => {
   socket.emit('state:sync', getPublicState())
+
+  // ---- License ----
+  socket.on('license:activate', ({ key }, cb) => {
+    const valid = validateLicenseKey(key)
+    if (valid) {
+      state.license = key.trim().toUpperCase()
+      addAudit(state, 'license:activated', '', key)
+      saveStore(state)
+      broadcast()
+    }
+    cb?.(valid)
+  })
+
+  socket.on('license:deactivate', () => {
+    state.license = ''
+    addAudit(state, 'license:deactivated', '', '')
+    saveStore(state)
+    broadcast()
+  })
 
   // ---- Auth ----
   socket.on('auth:check', ({ password, role }, cb) => {

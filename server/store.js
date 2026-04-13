@@ -18,8 +18,59 @@ const DEFAULT_COUNTERS = [
   { id: 3, name: 'Counter 3', operatorName: '', currentTicket: null, status: 'open', categoryIds: [] },
 ]
 
+// ---- License Key Validation ----
+const LICENSE_SECRET = 'QueueSys2026'
+
+export function generateLicenseKey(seed) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const hash = (s) => {
+    let h = 0
+    for (let i = 0; i < s.length; i++) { h = ((h << 5) - h + s.charCodeAt(i)) | 0 }
+    return Math.abs(h)
+  }
+  const segments = []
+  for (let seg = 0; seg < 4; seg++) {
+    let part = ''
+    for (let i = 0; i < 4; i++) {
+      const h = hash(`${LICENSE_SECRET}-${seed}-${seg}-${i}`)
+      part += chars[h % chars.length]
+    }
+    segments.push(part)
+  }
+  // Checksum segment
+  const body = segments.join('')
+  let check = ''
+  for (let i = 0; i < 4; i++) {
+    const h = hash(`${LICENSE_SECRET}-CHK-${body}-${i}`)
+    check += chars[h % chars.length]
+  }
+  return `QS-${segments.join('-')}-${check}`
+}
+
+export function validateLicenseKey(key) {
+  if (!key || typeof key !== 'string') return false
+  const parts = key.trim().toUpperCase().split('-')
+  if (parts.length !== 6 || parts[0] !== 'QS') return false
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const hash = (s) => {
+    let h = 0
+    for (let i = 0; i < s.length; i++) { h = ((h << 5) - h + s.charCodeAt(i)) | 0 }
+    return Math.abs(h)
+  }
+  // Validate checksum
+  const body = parts.slice(1, 5).join('')
+  if (body.length !== 16) return false
+  let expectedCheck = ''
+  for (let i = 0; i < 4; i++) {
+    const h = hash(`${LICENSE_SECRET}-CHK-${body}-${i}`)
+    expectedCheck += chars[h % chars.length]
+  }
+  return parts[5] === expectedCheck
+}
+
 function makeDefault() {
   return {
+    license: '',
     counters: JSON.parse(JSON.stringify(DEFAULT_COUNTERS)),
     categories: JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)),
     tickets: [],
