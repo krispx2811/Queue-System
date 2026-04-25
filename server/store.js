@@ -382,11 +382,14 @@ export function callNext(state, counterId) {
     }
   }
 
-  // Find next waiting ticket by number, filtering by stage if assigned
+  // Find next waiting ticket — prioritize tickets forced to this counter,
+  // then filter by category/stage assignment.
   const validCategories = counter.categoryIds.length > 0 ? counter.categoryIds : state.categories.map(c => c.id)
   const waiting = state.tickets
     .filter(t => {
       if (t.status !== 'waiting') return false
+      // Forced-to-this-counter takes priority and bypasses category/stage filters
+      if (t.forcedCounterId) return t.forcedCounterId === counterId
       if (!validCategories.includes(t.categoryId)) return false
       // Stage filtering: if counter has a stageId, only serve tickets at that stage
       if (counter.stageId) {
@@ -396,7 +399,12 @@ export function callNext(state, counterId) {
       }
       return true
     })
-    .sort((a, b) => a.number - b.number)
+    .sort((a, b) => {
+      // Forced transfers first, then by ticket number
+      if (a.forcedCounterId && !b.forcedCounterId) return -1
+      if (b.forcedCounterId && !a.forcedCounterId) return 1
+      return a.number - b.number
+    })
 
   const next = waiting[0]
   if (!next) {
@@ -406,6 +414,7 @@ export function callNext(state, counterId) {
 
   next.status = 'serving'
   next.counterId = counterId
+  next.forcedCounterId = null
   counter.lastActiveAt = Date.now()
   next.calledAt = Date.now()
   counter.currentTicket = next.number
@@ -449,6 +458,7 @@ export function transferTicket(state, ticketNumber, toCategoryId, toCounterId = 
   const ticket = state.tickets.find(t => t.number === ticketNumber)
   if (!ticket) return null
 
+  ticket.transferHistory = ticket.transferHistory || []
   ticket.transferHistory.push({
     fromCategoryId: ticket.categoryId,
     fromCounterId: ticket.counterId,
@@ -463,7 +473,7 @@ export function transferTicket(state, ticketNumber, toCategoryId, toCounterId = 
     }
   }
 
-  ticket.categoryId = toCategoryId
+  if (toCategoryId) ticket.categoryId = toCategoryId
   ticket.status = 'waiting'
   ticket.counterId = null
 
@@ -476,6 +486,46 @@ export function transferTicket(state, ticketNumber, toCategoryId, toCounterId = 
       dest.currentTicket = ticketNumber
     }
   }
+
+  return ticket
+}
+
+// Transfer a patient to a specific room/counter (same stage, different counter)
+// Sets forcedCounterId so only that counter can pick them up.
+export function transferToRoom(state, ticketNumber, toCounterId, fromCounterId) {
+  const ticket = state.tickets.find(t => t.number === ticketNumber)
+  if (!ticket) return null
+
+  const dest = state.counters.find(c => c.id === toCounterId)
+  if (!dest) return null
+
+  ticket.transferHistory = ticket.transferHistory || []
+  ticket.transferHistory.push({
+    fromCounterId: ticket.counterId,
+    toCounterId,
+    at: Date.now(),
+    type: 'room',
+  })
+
+  // Free up the source counter
+  const fromCounter = state.counters.find(c => c.id === fromCounterId)
+  if (fromCounter && fromCounter.currentTicket === ticketNumber) {
+    fromCounter.currentTicket = null
+  }
+
+  // Align ticket stage with destination counter's stage (if it has one)
+  if (dest.stageId) {
+    const cat = state.categories.find(c => c.id === ticket.categoryId)
+    const stages = cat?.stages || []
+    const stageIdx = stages.findIndex(s => s.id === dest.stageId)
+    if (stageIdx !== -1) ticket.currentStage = stageIdx
+  }
+
+  // Send to waiting; lock to the destination counter
+  ticket.status = 'waiting'
+  ticket.counterId = null
+  ticket.calledAt = null
+  ticket.forcedCounterId = toCounterId
 
   return ticket
 }

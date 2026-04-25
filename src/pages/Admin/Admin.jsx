@@ -151,6 +151,12 @@ export default function Admin() {
     setTransferModal(null)
   }
 
+  const handleTransferToRoom = (toCounterId) => {
+    if (!transferModal) return
+    emit('ticket:transferToRoom', { ticketNumber: transferModal.number, toCounterId, fromCounterId: counterId })
+    setTransferModal(null)
+  }
+
   const handleSaveNote = () => {
     if (!noteModal) return
     emitVoid('ticket:note', { ticketNumber: noteModal.number, note: noteText })
@@ -1331,17 +1337,42 @@ export default function Admin() {
 
         {transferModal && (
           <motion.div className="adm-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <motion.div className="adm-modal" initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}>
+            <motion.div className="adm-modal adm-modal--wide" initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}>
               <h3>Transfer #{(transferModal.displayNumber || padNumber(transferModal.number))}</h3>
-              <p>Select destination category:</p>
-              <div className="adm-transfer-cats">
-                {state.categories.filter(c => c.id !== transferModal.categoryId).map(cat => (
-                  <button key={cat.id} className="adm-transfer-cat" style={{ borderColor: cat.color }}
-                    onClick={() => handleTransfer(cat.id)}>
-                    {cat.name}
-                  </button>
-                ))}
+
+              <div className="adm-transfer-section">
+                <p className="adm-transfer-label">Send to another room (emergency, switch operator):</p>
+                <div className="adm-transfer-rooms">
+                  {state.counters.filter(c => c.id !== counterId && c.status === 'open').map(c => {
+                    const stage = c.stageId
+                      ? state.categories.find(cat => cat.stages?.find(s => s.id === c.stageId))?.stages?.find(s => s.id === c.stageId)
+                      : null
+                    return (
+                      <button key={c.id} className="adm-transfer-room"
+                        onClick={() => handleTransferToRoom(c.id)}>
+                        <span className="adm-transfer-room-name">{c.name}</span>
+                        {c.operatorName && <span className="adm-transfer-room-op">{c.operatorName}</span>}
+                        {stage && <span className="adm-transfer-room-stage">{stage.name}</span>}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
+
+              <div className="adm-transfer-divider" />
+
+              <div className="adm-transfer-section">
+                <p className="adm-transfer-label">Or change visit type (different workflow):</p>
+                <div className="adm-transfer-cats">
+                  {state.categories.filter(c => c.id !== transferModal.categoryId).map(cat => (
+                    <button key={cat.id} className="adm-transfer-cat" style={{ borderColor: cat.color }}
+                      onClick={() => handleTransfer(cat.id)}>
+                      {cat.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <button className="adm-modal-btn" onClick={() => setTransferModal(null)} style={{ marginTop: 12, width: '100%' }}>Cancel</button>
             </motion.div>
           </motion.div>

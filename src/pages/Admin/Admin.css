@@ -762,6 +762,37 @@
 .adm-modal-btn--primary { background: var(--blue-dim); border-color: rgba(79,143,247,0.2); color: var(--blue); }
 .adm-modal-btn--primary:hover { background: var(--blue); color: #fff; }
 
+.adm-modal--wide { width: 460px; max-width: 90vw; }
+
+.adm-transfer-section { margin: 8px 0; text-align: left; }
+.adm-transfer-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--gray-2);
+  margin-bottom: 8px;
+}
+.adm-transfer-divider {
+  height: 1px; background: var(--border); margin: 14px 0;
+}
+
+.adm-transfer-rooms {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;
+  max-height: 240px; overflow-y: auto;
+}
+.adm-transfer-room {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  padding: 10px 12px; border-radius: 8px;
+  background: var(--bg-surface); border: 1px solid var(--border);
+  text-align: left; cursor: pointer; transition: all 0.15s;
+}
+.adm-transfer-room:hover { border-color: var(--blue); background: var(--blue-dim); }
+.adm-transfer-room-name { font-size: 13px; font-weight: 700; color: var(--white); }
+.adm-transfer-room-op { font-size: 10px; color: var(--gray-2); }
+.adm-transfer-room-stage {
+  font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 4px;
+  background: var(--bg-subtle); color: var(--gray-2);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+
 .adm-transfer-cats { display: flex; flex-direction: column; gap: 6px; }
 .adm-transfer-cat {
   padding: 10px; border-radius: 10px; font-size: 13px; font-weight: 600;

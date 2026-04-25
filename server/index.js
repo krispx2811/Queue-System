@@ -8,7 +8,7 @@ import { existsSync } from 'fs'
 import {
   loadStore, saveStore,
   takeTicket, callNext, recallTicket, skipTicket, completeTicket,
-  transferTicket, addNote, holdTicket, unholdTicket, advanceTicket,
+  transferTicket, transferToRoom, addNote, holdTicket, unholdTicket, advanceTicket,
   resetQueue, getAnalytics, getAdvancedAnalytics, getMonthlyAnalytics, getTicketPosition,
   findBestCounter, checkIdleCounters, getCategoryWaitTimes,
   addAudit, clockIn, clockOut,
@@ -288,6 +288,17 @@ io.on('connection', (socket) => {
       addAudit(state, 'ticket:unhold', cName, `#${ticket.number}`)
       io.emit('ticket:announced', { ticketNumber: ticket.number, counterId, action: 'next', counterName: cName })
     }
+    cb?.(ticket)
+  })
+
+  socket.on('ticket:transferToRoom', ({ ticketNumber, toCounterId, fromCounterId }, cb) => {
+    const ticket = transferToRoom(state, ticketNumber, toCounterId, fromCounterId)
+    if (ticket) {
+      const fromName = state.counters.find(c => c.id === fromCounterId)?.name || ''
+      const toName = state.counters.find(c => c.id === toCounterId)?.name || ''
+      addAudit(state, 'ticket:transferToRoom', fromName, `#${ticketNumber} → ${toName}`)
+    }
+    broadcast()
     cb?.(ticket)
   })
 
