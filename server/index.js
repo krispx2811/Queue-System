@@ -1,10 +1,11 @@
 import express from 'express'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
+import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js'
 import {
   loadStore, saveStore,
   takeTicket, callNext, recallTicket, skipTicket, completeTicket,
-  transferTicket, addNote, holdTicket, unholdTicket,
+  transferTicket, addNote, holdTicket, unholdTicket, advanceTicket,
   resetQueue, getAnalytics, getAdvancedAnalytics, getMonthlyAnalytics, getTicketPosition,
   findBestCounter, checkIdleCounters, getCategoryWaitTimes,
   addAudit, clockIn, clockOut,
@@ -109,6 +110,56 @@ app.get('/api/audit', (_, res) => {
   res.json(state.auditLog.slice(0, 200))
 })
 
+// Global ElevenLabs key — used as fallback if no per-instance key is set
+const GLOBAL_ELEVENLABS_KEY = 'sk_edd298b7eed05da619d536b6ea4d36e5157019b7dcc6cb72'
+
+// ElevenLabs TTS — server-side using the SDK
+app.post('/api/tts', async (req, res) => {
+  try {
+    const { text } = req.body
+    if (!text) return res.status(400).json({ error: 'text required' })
+
+    const apiKey = state.settings.elevenLabsApiKey || GLOBAL_ELEVENLABS_KEY
+    const voiceId = state.settings.elevenLabsVoiceId || 'A9ATTqUUQ6GHu0coCz8t'
+    const modelId = state.settings.elevenLabsModel || 'eleven_multilingual_v2'
+
+    if (!apiKey) return res.status(400).json({ error: 'No API key configured' })
+
+    const client = new ElevenLabsClient({ apiKey })
+    const audio = await client.textToSpeech.convert(voiceId, {
+      text,
+      modelId,
+      voiceSettings: { stability: 0.5, similarityBoost: 0.75, style: 0, useSpeakerBoost: true },
+    })
+
+    res.set('Content-Type', 'audio/mpeg')
+    if (audio.pipe) {
+      audio.pipe(res)
+    } else if (audio[Symbol.asyncIterator]) {
+      for await (const chunk of audio) res.write(chunk)
+      res.end()
+    } else {
+      res.send(Buffer.from(audio))
+    }
+  } catch (e) {
+    console.error('TTS error:', e.message)
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Fetch ElevenLabs voices via server (keeps API key off the client)
+app.get('/api/tts/voices', async (_, res) => {
+  try {
+    const apiKey = state.settings.elevenLabsApiKey || GLOBAL_ELEVENLABS_KEY
+    if (!apiKey) return res.json({ voices: [] })
+    const client = new ElevenLabsClient({ apiKey })
+    const result = await client.voices.getAll()
+    res.json({ voices: result.voices || [] })
+  } catch (e) {
+    res.json({ voices: [], error: e.message })
+  }
+})
+
 // ===== Socket.IO =====
 io.on('connection', (socket) => {
   socket.emit('state:sync', getPublicState())
@@ -207,6 +258,18 @@ io.on('connection', (socket) => {
     cb?.(ticket)
   })
 
+  socket.on('ticket:advance', ({ counterId }, cb) => {
+    const result = advanceTicket(state, counterId)
+    if (result) {
+      const cName = state.counters.find(c => c.id === counterId)?.name || ''
+      const action = result.finished ? 'complete' : `advance → ${result.nextStage?.name}`
+      addAudit(state, `ticket:${action}`, cName, `#${result.ticket.number}`)
+      fireWebhooks(result.finished ? 'ticket:completed' : 'ticket:advanced', result)
+    }
+    broadcast()
+    cb?.(result)
+  })
+
   socket.on('ticket:hold', ({ counterId }, cb) => {
     const ticket = holdTicket(state, counterId)
     if (ticket) addAudit(state, 'ticket:hold', state.counters.find(c => c.id === counterId)?.name || '', `#${ticket.number}`)
@@ -259,7 +322,7 @@ io.on('connection', (socket) => {
     broadcast()
   })
 
-  socket.on('counter:update', ({ counterId, name, operatorName, categoryIds }) => {
+  socket.on('counter:update', ({ counterId, name, operatorName, categoryIds, stageId }) => {
     const counter = state.counters.find(c => c.id === counterId)
     if (counter) {
       if (name !== undefined) { addAudit(state, 'counter:rename', '', `${counter.name} → ${name}`); counter.name = name }
@@ -271,6 +334,7 @@ io.on('connection', (socket) => {
         counter.operatorName = operatorName
       }
       if (categoryIds !== undefined) counter.categoryIds = categoryIds
+      if (stageId !== undefined) counter.stageId = stageId
     }
     broadcast()
   })
@@ -328,16 +392,16 @@ io.on('connection', (socket) => {
   socket.on('track:lookup', ({ ticketNumber }, cb) => cb?.(getTicketPosition(state, ticketNumber)))
 
   // ---- Category management ----
-  socket.on('category:add', ({ name, nameAr, nameUr, nameFr, color, prefix }, cb) => {
+  socket.on('category:add', ({ name, nameAr, nameUr, nameFr, color, prefix, stages }, cb) => {
     const id = name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now()
-    const cat = { id, name, nameAr: nameAr || '', nameUr: nameUr || '', nameFr: nameFr || '', color, prefix: prefix || name.charAt(0).toUpperCase() }
+    const cat = { id, name, nameAr: nameAr || '', nameUr: nameUr || '', nameFr: nameFr || '', color, prefix: prefix || name.charAt(0).toUpperCase(), stages: stages || [] }
     state.categories.push(cat)
     addAudit(state, 'category:add', '', name)
     broadcast()
     cb?.(cat)
   })
 
-  socket.on('category:update', ({ id, name, nameAr, nameUr, nameFr, color, prefix }) => {
+  socket.on('category:update', ({ id, name, nameAr, nameUr, nameFr, color, prefix, stages }) => {
     const cat = state.categories.find(c => c.id === id)
     if (cat) {
       if (name !== undefined) cat.name = name
@@ -346,6 +410,7 @@ io.on('connection', (socket) => {
       if (nameFr !== undefined) cat.nameFr = nameFr
       if (color !== undefined) cat.color = color
       if (prefix !== undefined) cat.prefix = prefix
+      if (stages !== undefined) cat.stages = stages
     }
     broadcast()
   })

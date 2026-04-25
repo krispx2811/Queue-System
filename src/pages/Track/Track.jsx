@@ -118,7 +118,7 @@ export default function Track() {
 
                 <div className="trk-wait-grid">
                   <div className="trk-wait-item">
-                    <span className="trk-wait-val">#{padNumber(result.ticket.number)}</span>
+                    <span className="trk-wait-val">{result.ticket.displayNumber || `#${padNumber(result.ticket.number)}`}</span>
                     <span className="trk-wait-label">Your Number</span>
                   </div>
                   <div className="trk-wait-sep" />
@@ -127,6 +127,27 @@ export default function Track() {
                     <span className="trk-wait-label">Est. Wait</span>
                   </div>
                 </div>
+
+                {/* Stage progress for multi-stage tickets */}
+                {(() => {
+                  const cat = state.categories.find(c => c.id === result.ticket.categoryId)
+                  const stages = cat?.stages || []
+                  if (stages.length <= 1) return null
+                  const current = result.ticket.currentStage || 0
+                  return (
+                    <div className="trk-stages">
+                      <div className="trk-stages-label">Your Journey</div>
+                      <div className="trk-stages-list">
+                        {stages.map((s, i) => (
+                          <div key={s.id} className={`trk-stage ${i < current ? 'trk-stage--done' : ''} ${i === current ? 'trk-stage--current' : ''}`}>
+                            <div className="trk-stage-dot">{i < current ? '✓' : i + 1}</div>
+                            <span className="trk-stage-name">{s.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })()}
 
                 <p className="trk-auto">Auto-refreshes every 10 seconds</p>
               </div>

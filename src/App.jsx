@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { SocketProvider } from './context/SocketContext'
 import ThemeApplier from './components/ThemeApplier'
-import VoiceAnnouncer from './components/VoiceAnnouncer'
 import Landing from './pages/Landing/Landing'
 import Dashboard from './pages/Dashboard/Dashboard'
 import Display from './pages/Display/Display'
@@ -13,7 +12,6 @@ export default function App() {
   return (
     <SocketProvider>
       <ThemeApplier />
-      <VoiceAnnouncer />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing />} />

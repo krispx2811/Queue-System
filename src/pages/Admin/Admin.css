@@ -404,6 +404,100 @@
   color: var(--gray-3); font-size: 14px; transition: all 0.15s; flex-shrink: 0;
 }
 .adm-cat-rm:hover { color: var(--red); background: var(--red-dim); }
+
+/* Category card with stages */
+.adm-cat-card {
+  background: var(--bg-raised); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px;
+}
+.adm-cat-card .adm-cat-row { background: transparent; border: none; padding: 0; }
+
+/* Stages editor */
+.adm-stages {
+  padding: 10px 12px; border-radius: 8px;
+  background: var(--bg-subtle); border: 1px solid var(--border);
+}
+.adm-stages-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--gray-2); margin-bottom: 8px;
+}
+.adm-stages-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.adm-stage-item {
+  display: flex; align-items: center; gap: 4px;
+  background: var(--bg-raised); border: 1px solid var(--border);
+  border-radius: 8px; padding: 4px 4px 4px 8px;
+}
+.adm-stage-num {
+  font-family: var(--font-mono); font-weight: 700; font-size: 10px; color: var(--blue);
+  background: var(--blue-dim); padding: 2px 6px; border-radius: 4px;
+}
+.adm-stage-input {
+  background: transparent; border: none; outline: none;
+  font-size: 12px; font-weight: 600; color: var(--white);
+  font-family: var(--font); width: 90px;
+}
+.adm-stage-rm {
+  width: 18px; height: 18px; border-radius: 4px; color: var(--gray-3);
+  font-size: 12px; transition: all 0.15s;
+}
+.adm-stage-rm:hover { color: var(--red); background: var(--red-dim); }
+.adm-stage-add {
+  font-size: 11px; font-weight: 600; color: var(--gray-2);
+  padding: 5px 10px; border-radius: 8px; border: 1px dashed var(--border);
+  transition: all 0.15s;
+}
+.adm-stage-add:hover { color: var(--blue); border-color: var(--blue); }
+
+/* Stage badge on serving */
+.adm-stage-badge {
+  display: inline-block; margin-top: 4px;
+  font-size: 10px; font-weight: 700; padding: 3px 8px;
+  border-radius: 6px; background: var(--blue-dim); color: var(--blue);
+}
+
+/* Wait list stage */
+.adm-wait-stage {
+  font-size: 10px; font-weight: 600; color: var(--gray-2);
+  padding: 1px 6px; border-radius: 4px; background: var(--bg-subtle);
+}
+
+/* ElevenLabs voice picker */
+.adm-voice-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px; max-height: 320px; overflow-y: auto; padding: 4px;
+}
+.adm-voice-card {
+  text-align: left; padding: 12px;
+  background: var(--bg-raised); border: 2px solid var(--border);
+  border-radius: 10px; cursor: pointer; transition: all 0.15s;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.adm-voice-card:hover { border-color: var(--border-light); }
+.adm-voice-card--active { border-color: var(--blue); background: var(--blue-dim); }
+.adm-voice-name {
+  font-size: 13px; font-weight: 700; color: var(--white);
+}
+.adm-voice-labels { display: flex; flex-wrap: wrap; gap: 4px; }
+.adm-voice-tag {
+  font-size: 9px; font-weight: 600; padding: 2px 6px;
+  border-radius: 4px; background: var(--bg-subtle); color: var(--gray-2);
+  text-transform: capitalize;
+}
+.adm-voice-preview {
+  font-size: 10px; font-weight: 600; color: var(--blue);
+  padding: 3px 8px; border-radius: 5px;
+  background: var(--blue-dim); border: 1px solid rgba(79,143,247,0.2);
+  align-self: flex-start; transition: all 0.15s;
+}
+.adm-voice-preview:hover { background: var(--blue); color: #fff; }
+
+/* Advance button */
+.adm-act--advance {
+  background: var(--blue-dim); border-color: rgba(79,143,247,0.3); color: var(--blue);
+}
+.adm-act--advance:hover:not(:disabled) {
+  background: var(--blue); color: #fff; border-color: var(--blue);
+}
 .adm-cat-status {
   font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
   padding: 2px 6px; border-radius: 4px;

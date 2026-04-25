@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSocket } from '../../context/SocketContext'
-import { testSpeak } from '../../hooks/useVoice'
+import { testSpeak, fetchElevenLabsVoices } from '../../hooks/useVoice'
 import { padNumber, formatTime } from '../../utils/formatters'
 import { ticketsToCSV, downloadCSV } from '../../utils/csv'
 import { SOUND_THEMES, playChime } from '../../utils/sounds'
@@ -20,6 +20,8 @@ export default function Admin() {
   const [adminPwInput, setAdminPwInput] = useState('')
   const [adminPwError, setAdminPwError] = useState(false)
   const [adminToast, setAdminToast] = useState(false)
+  const [elevenVoices, setElevenVoices] = useState([])
+  const [elevenLoading, setElevenLoading] = useState(false)
 
   // Persist session
   useEffect(() => {
@@ -64,6 +66,14 @@ export default function Admin() {
     ? state.tickets.find(t => t.number === counter.currentTicket)
     : null
 
+  // Stage info for current ticket
+  const currentTicketCategory = currentTicket ? state.categories.find(c => c.id === currentTicket.categoryId) : null
+  const currentStages = currentTicketCategory?.stages || []
+  const currentStageIdx = currentTicket?.currentStage || 0
+  const currentStageObj = currentStages[currentStageIdx] || null
+  const nextStageObj = currentStages[currentStageIdx + 1] || null
+  const hasMultiStage = currentStages.length > 1
+
   const waiting = state.tickets.filter(t => t.status === 'waiting')
   const served = state.tickets.filter(t => t.status === 'served')
 
@@ -77,6 +87,7 @@ export default function Admin() {
       if (e.key === 's' || e.key === 'S') handleSkip()
       if (e.key === 'c' || e.key === 'C') handleComplete()
       if (e.key === 'h' || e.key === 'H') handleHold()
+      if (e.key === 'a' || e.key === 'A') handleAdvance()
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
@@ -105,6 +116,11 @@ export default function Admin() {
   const handleComplete = useCallback(() => {
     if (!counterId) return
     emit('ticket:complete', { counterId })
+  }, [counterId, emit])
+
+  const handleAdvance = useCallback(() => {
+    if (!counterId) return
+    emit('ticket:advance', { counterId })
   }, [counterId, emit])
 
   const handleHold = useCallback(() => {
@@ -151,6 +167,17 @@ export default function Admin() {
     setAdvAnalytics(adv)
     setMonthlyData(monthly)
   }
+
+  // Fetch ElevenLabs voices when API key changes (server-side fetch)
+  useEffect(() => {
+    const key = state.settings.elevenLabsApiKey
+    if (!key || state.settings.ttsProvider !== 'elevenlabs') { setElevenVoices([]); return }
+    setElevenLoading(true)
+    fetchElevenLabsVoices().then(voices => {
+      setElevenVoices(voices)
+      setElevenLoading(false)
+    })
+  }, [state.settings.elevenLabsApiKey, state.settings.ttsProvider])
 
   // Auto-refresh analytics every 30s when on that tab
   useEffect(() => {
@@ -325,8 +352,13 @@ export default function Admin() {
                   <span className="adm-stat-label">Serving</span>
                   <span className="adm-stat-num">{currentTicket ? (currentTicket.displayNumber || padNumber(currentTicket.number)) : '—'}</span>
                   {currentTicket && (
-                    <span className="adm-stat-cat" style={{ color: state.categories.find(c => c.id === currentTicket.categoryId)?.color }}>
-                      {state.categories.find(c => c.id === currentTicket.categoryId)?.name}
+                    <span className="adm-stat-cat" style={{ color: currentTicketCategory?.color }}>
+                      {currentTicketCategory?.name}
+                    </span>
+                  )}
+                  {hasMultiStage && currentStageObj && (
+                    <span className="adm-stage-badge">
+                      Stage {currentStageIdx + 1}/{currentStages.length}: {currentStageObj.name}
                     </span>
                   )}
                 </div>
@@ -350,9 +382,19 @@ export default function Admin() {
                 <button className="adm-act" onClick={handleRecall} disabled={!currentTicket}>
                   Recall<kbd>R</kbd>
                 </button>
-                <button className="adm-act" onClick={handleComplete} disabled={!currentTicket}>
-                  Complete<kbd>C</kbd>
-                </button>
+                {hasMultiStage && nextStageObj ? (
+                  <button className="adm-act adm-act--advance" onClick={handleAdvance} disabled={!currentTicket}>
+                    → {nextStageObj.name}<kbd>A</kbd>
+                  </button>
+                ) : hasMultiStage && !nextStageObj && currentTicket ? (
+                  <button className="adm-act adm-act--advance" onClick={handleAdvance} disabled={!currentTicket}>
+                    Finish<kbd>A</kbd>
+                  </button>
+                ) : (
+                  <button className="adm-act" onClick={handleComplete} disabled={!currentTicket}>
+                    Complete<kbd>C</kbd>
+                  </button>
+                )}
                 <button className="adm-act" onClick={handleSkip} disabled={!currentTicket}>
                   Skip<kbd>S</kbd>
                 </button>
@@ -405,10 +447,12 @@ export default function Admin() {
               <div className="adm-sidebar-list">
                 {waiting.sort((a, b) => a.number - b.number).map(t => {
                   const cat = state.categories.find(c => c.id === t.categoryId)
+                  const stage = cat?.stages?.[t.currentStage || 0]
                   return (
                     <div key={t.number} className="adm-wait-row">
                       <span className="adm-wait-num">{(t.displayNumber || padNumber(t.number))}</span>
                       <span className="adm-wait-cat" style={{ color: cat?.color }}>{cat?.name}</span>
+                      {stage && <span className="adm-wait-stage">{stage.name}</span>}
                       <span className="adm-wait-time">{formatTime(t.createdAt)}</span>
                     </div>
                   )
@@ -628,16 +672,42 @@ export default function Admin() {
               <h3>Service Categories</h3>
               <div className="adm-cat-list">
                 {state.categories.map(cat => (
-                  <div key={cat.id} className="adm-cat-row">
-                    <span className="adm-cat-dot" style={{ background: cat.color }} />
-                    <input className="adm-cat-prefix" value={cat.prefix || ''} maxLength={3}
-                      onChange={e => emitVoid('category:update', { id: cat.id, prefix: e.target.value.toUpperCase() })}
-                      title="Ticket prefix" placeholder="—" />
-                    <span className="adm-cat-name">{cat.name}</span>
-                    <span className="adm-cat-name-ar">{cat.nameAr}</span>
-                    <input type="color" value={cat.color} className="adm-cat-color"
-                      onChange={e => emitVoid('category:update', { id: cat.id, color: e.target.value })} />
-                    <button className="adm-cat-rm" onClick={() => emitVoid('category:remove', { id: cat.id })}>×</button>
+                  <div key={cat.id} className="adm-cat-card">
+                    <div className="adm-cat-row">
+                      <span className="adm-cat-dot" style={{ background: cat.color }} />
+                      <input className="adm-cat-prefix" value={cat.prefix || ''} maxLength={3}
+                        onChange={e => emitVoid('category:update', { id: cat.id, prefix: e.target.value.toUpperCase() })}
+                        title="Ticket prefix" placeholder="—" />
+                      <span className="adm-cat-name">{cat.name}</span>
+                      <span className="adm-cat-name-ar">{cat.nameAr}</span>
+                      <input type="color" value={cat.color} className="adm-cat-color"
+                        onChange={e => emitVoid('category:update', { id: cat.id, color: e.target.value })} />
+                      <button className="adm-cat-rm" onClick={() => emitVoid('category:remove', { id: cat.id })}>×</button>
+                    </div>
+                    {/* Stage editor */}
+                    <div className="adm-stages">
+                      <div className="adm-stages-label">Stages (multi-step workflow)</div>
+                      <div className="adm-stages-row">
+                        {(cat.stages || []).map((stage, idx) => (
+                          <div key={stage.id} className="adm-stage-item">
+                            <span className="adm-stage-num">{idx + 1}</span>
+                            <input className="adm-stage-input" value={stage.name}
+                              onChange={e => {
+                                const newStages = [...cat.stages]
+                                newStages[idx] = { ...stage, name: e.target.value }
+                                emitVoid('category:update', { id: cat.id, stages: newStages })
+                              }} />
+                            <button className="adm-stage-rm"
+                              onClick={() => emitVoid('category:update', { id: cat.id, stages: cat.stages.filter((_, i) => i !== idx) })}>×</button>
+                          </div>
+                        ))}
+                        <button className="adm-stage-add"
+                          onClick={() => {
+                            const newStage = { id: `stage-${Date.now()}`, name: 'New Stage' }
+                            emitVoid('category:update', { id: cat.id, stages: [...(cat.stages || []), newStage] })
+                          }}>+ Add Stage</button>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -855,6 +925,94 @@ export default function Admin() {
                 <h2 className="sg-title">Sound & Voice</h2>
               </div>
               <div className="sg-body">
+                {/* TTS Provider */}
+                <div className="sg-field">
+                  <label className="sg-label">Voice Provider</label>
+                  <div className="adm-set-options">
+                    {[
+                      { id: 'google', name: 'Google TTS (free)' },
+                      { id: 'elevenlabs', name: 'ElevenLabs (HD AI voices)' },
+                    ].map(p => (
+                      <button key={p.id} className={`adm-set-opt ${(state.settings.ttsProvider || 'google') === p.id ? 'adm-set-opt--active' : ''}`}
+                        onClick={() => emitVoid('settings:update', { ttsProvider: p.id })}>
+                        {p.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* ElevenLabs config */}
+                {state.settings.ttsProvider === 'elevenlabs' && (
+                  <>
+                    <div className="sg-field">
+                      <label className="sg-label">ElevenLabs API Key</label>
+                      <p className="sg-hint">Get yours at elevenlabs.io — free tier includes 10k chars/month</p>
+                      <input className="adm-input" type="password"
+                        placeholder="sk_..."
+                        value={state.settings.elevenLabsApiKey || ''}
+                        onChange={e => emitVoid('settings:update', { elevenLabsApiKey: e.target.value })} />
+                    </div>
+
+                    {state.settings.elevenLabsApiKey && (
+                      <div className="sg-field">
+                        <label className="sg-label">Voice {elevenLoading && <span className="sg-label-hint">(loading...)</span>}</label>
+                        {elevenVoices.length > 0 ? (
+                          <div className="adm-voice-grid">
+                            {[...elevenVoices].sort((a, b) => {
+                              const aId = a.voiceId || a.voice_id
+                              const bId = b.voiceId || b.voice_id
+                              const sel = state.settings.elevenLabsVoiceId
+                              if (aId === sel) return -1
+                              if (bId === sel) return 1
+                              return 0
+                            }).map(v => {
+                              const id = v.voiceId || v.voice_id
+                              const preview = v.previewUrl || v.preview_url
+                              return (
+                                <button key={id}
+                                  className={`adm-voice-card ${state.settings.elevenLabsVoiceId === id ? 'adm-voice-card--active' : ''}`}
+                                  onClick={() => emitVoid('settings:update', { elevenLabsVoiceId: id })}>
+                                  <div className="adm-voice-name">{v.name}</div>
+                                  {v.labels && (
+                                    <div className="adm-voice-labels">
+                                      {Object.values(v.labels).slice(0, 3).map((l, i) => (
+                                        <span key={i} className="adm-voice-tag">{l}</span>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {preview && (
+                                    <button className="adm-voice-preview" onClick={(e) => { e.stopPropagation(); new Audio(preview).play() }}>
+                                      ▶ Preview
+                                    </button>
+                                  )}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        ) : !elevenLoading ? (
+                          <p className="sg-hint" style={{ color: 'var(--red)' }}>No voices found. Check your API key.</p>
+                        ) : null}
+                      </div>
+                    )}
+
+                    <div className="sg-field">
+                      <label className="sg-label">Model</label>
+                      <div className="adm-set-options">
+                        {[
+                          { id: 'eleven_multilingual_v2', name: 'Multilingual v2 (best)' },
+                          { id: 'eleven_turbo_v2_5', name: 'Turbo v2.5 (fast)' },
+                          { id: 'eleven_flash_v2_5', name: 'Flash v2.5 (fastest)' },
+                        ].map(m => (
+                          <button key={m.id} className={`adm-set-opt ${state.settings.elevenLabsModel === m.id ? 'adm-set-opt--active' : ''}`}
+                            onClick={() => emitVoid('settings:update', { elevenLabsModel: m.id })}>
+                            {m.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
                 <div className="sg-row">
                   <div className="sg-field">
                     <label className="sg-label">Sound Theme <span className="sg-label-hint">(click to preview)</span></label>
@@ -888,7 +1046,7 @@ export default function Admin() {
                   <div className="adm-tts-test">
                     {LANGUAGES.map(lang => (
                       <button key={lang.code} className="adm-tts-btn"
-                        onClick={() => testSpeak(lang.code === 'en' ? 'Now serving number 42 at Counter 1' : lang.code === 'ar' ? 'الرقم ٤٢ تفضل إلى الشباك ١' : lang.code === 'ur' ? 'نمبر 42 کاؤنٹر 1 پر آئیں' : 'Numéro 42 au guichet 1 s\'il vous plaît', lang.code)}>
+                        onClick={() => testSpeak(lang.code === 'en' ? 'Now serving number 42 at Counter 1' : lang.code === 'ar' ? 'الرقم ٤٢ تفضل إلى الشباك ١' : lang.code === 'ur' ? 'نمبر 42 کاؤنٹر 1 پر آئیں' : 'Numéro 42 au guichet 1 s\'il vous plaît', lang.code, state.settings)}>
                         <span className="adm-tts-play">&#9654;</span>
                         <span>{lang.native}</span>
                       </button>
@@ -896,10 +1054,10 @@ export default function Admin() {
                   </div>
                   <div className="adm-tts-custom">
                     <input className="adm-input" type="text" placeholder="Type custom text to test..." id="tts-custom-input"
-                      onKeyDown={e => { if (e.key === 'Enter' && e.target.value.trim()) testSpeak(e.target.value, state.settings.languages[0] || 'en') }} />
+                      onKeyDown={e => { if (e.key === 'Enter' && e.target.value.trim()) testSpeak(e.target.value, state.settings.languages[0] || 'en', state.settings) }} />
                     <div className="adm-tts-custom-btns">
                       {LANGUAGES.filter(l => state.settings.languages.includes(l.code)).map(lang => (
-                        <button key={lang.code} className="adm-tts-mini" onClick={() => { const v = document.getElementById('tts-custom-input')?.value; if (v?.trim()) testSpeak(v, lang.code) }}>{lang.code.toUpperCase()}</button>
+                        <button key={lang.code} className="adm-tts-mini" onClick={() => { const v = document.getElementById('tts-custom-input')?.value; if (v?.trim()) testSpeak(v, lang.code, state.settings) }}>{lang.code.toUpperCase()}</button>
                       ))}
                     </div>
                   </div>
@@ -1000,6 +1158,38 @@ export default function Admin() {
                     </div>
                   </div>
                 </div>
+
+                {/* Stage assignment */}
+                {(() => {
+                  const allStages = []
+                  const seen = new Set()
+                  state.categories.forEach(cat => {
+                    if (counter.categoryIds.length > 0 && !counter.categoryIds.includes(cat.id)) return
+                    cat.stages?.forEach(s => {
+                      if (!seen.has(s.id)) { seen.add(s.id); allStages.push({ ...s, category: cat.name, color: cat.color }) }
+                    })
+                  })
+                  if (allStages.length === 0) return null
+                  return (
+                    <div className="sg-field">
+                      <label className="sg-label">Stage Assignment</label>
+                      <p className="sg-hint">Restrict this counter to one stage (empty = all stages)</p>
+                      <div className="adm-set-options">
+                        <button className={`adm-set-opt ${!counter.stageId ? 'adm-set-opt--active' : ''}`}
+                          onClick={() => emitVoid('counter:update', { counterId, stageId: null })}>
+                          All stages
+                        </button>
+                        {allStages.map(stage => (
+                          <button key={stage.id} className={`adm-set-opt ${counter.stageId === stage.id ? 'adm-set-opt--active' : ''}`}
+                            style={counter.stageId === stage.id ? { borderColor: stage.color, color: stage.color } : {}}
+                            onClick={() => emitVoid('counter:update', { counterId, stageId: stage.id })}>
+                            {stage.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
             </div>
 

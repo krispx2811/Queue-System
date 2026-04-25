@@ -65,10 +65,33 @@
 .num-wrap--hero .num-ring:nth-child(3) { inset: -130px; }
 .num-wrap--hero::after { inset: -40px; filter: blur(60px); }
 
-/* large = admin */
+/* large = display counter cards */
 .num-wrap--lg .num-val {
-  font-size: clamp(44px, 7vw, 72px);
+  font-size: clamp(28px, 5vw, 56px);
 }
+.num-wrap--lg .num-ring { inset: -20px; }
+.num-wrap--lg .num-ring:nth-child(2) { inset: -36px; }
+.num-wrap--lg .num-ring:nth-child(3) { inset: -52px; }
+
+/* When many counters, scale numbers down further */
+.dsp-grid--7 .num-val, .dsp-grid--8 .num-val,
+.dsp-grid--9 .num-val,
+.dsp-grid--10 .num-val, .dsp-grid--11 .num-val, .dsp-grid--12 .num-val,
+.dsp-grid--many .num-val {
+  font-size: clamp(22px, 3vw, 40px) !important;
+}
+.dsp-grid--7 .num-ring, .dsp-grid--8 .num-ring,
+.dsp-grid--9 .num-ring,
+.dsp-grid--10 .num-ring, .dsp-grid--11 .num-ring, .dsp-grid--12 .num-ring,
+.dsp-grid--many .num-ring { inset: -12px !important; }
+.dsp-grid--7 .num-ring:nth-child(2), .dsp-grid--8 .num-ring:nth-child(2),
+.dsp-grid--9 .num-ring:nth-child(2),
+.dsp-grid--10 .num-ring:nth-child(2), .dsp-grid--11 .num-ring:nth-child(2), .dsp-grid--12 .num-ring:nth-child(2),
+.dsp-grid--many .num-ring:nth-child(2) { inset: -22px !important; }
+.dsp-grid--7 .num-ring:nth-child(3), .dsp-grid--8 .num-ring:nth-child(3),
+.dsp-grid--9 .num-ring:nth-child(3),
+.dsp-grid--10 .num-ring:nth-child(3), .dsp-grid--11 .num-ring:nth-child(3), .dsp-grid--12 .num-ring:nth-child(3),
+.dsp-grid--many .num-ring:nth-child(3) { display: none !important; }
 
 /* medium = ticker */
 .num-wrap--md .num-val {

@@ -9,6 +9,10 @@ export default defineConfig({
         target: 'http://localhost:3210',
         ws: true,
       },
+      '/api': {
+        target: 'http://localhost:3210',
+        changeOrigin: true,
+      },
     },
   },
 })

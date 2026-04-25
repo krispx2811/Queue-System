@@ -27,18 +27,15 @@ export default function VoiceAnnouncer() {
         await playChime(soundTheme, volume)
         await new Promise(r => setTimeout(r, 500))
 
-        // Play each language one at a time, fully waiting for each to finish
         for (let i = 0; i < languages.length; i++) {
           const lang = languages[i]
           const textKey = announced.action === 'recall' ? 'voiceRecall' : 'voiceNowServing'
           const text = t(textKey, lang, { n: announced.ticketNumber, counter: announced.counterName || '' })
 
-          // Stop anything that might still be playing before this language
           window.speechSynthesis?.cancel()
 
-          await speakSequential(text, lang)
+          await speakSequential(text, lang, state.settings)
 
-          // Longer pause between languages so they don't blend
           if (i < languages.length - 1) {
             await new Promise(r => setTimeout(r, 800))
           }

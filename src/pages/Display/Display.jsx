@@ -2,8 +2,8 @@ import { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSocket } from '../../context/SocketContext'
 import NumberDisplay from '../../components/NumberDisplay'
+import VoiceAnnouncer from '../../components/VoiceAnnouncer'
 import { padNumber, formatTicket } from '../../utils/formatters'
-import { playChime } from '../../utils/sounds'
 import { t } from '../../utils/i18n'
 import './Display.css'
 
@@ -64,17 +64,7 @@ function useWeather() {
 }
 
 export default function Display() {
-  const { state, announced } = useSocket()
-  const lastSoundRef = useRef('')
-
-  // Sound alert on display when number changes
-  useEffect(() => {
-    if (!announced) return
-    const key = `${announced.ticketNumber}-${announced.counterId}`
-    if (key === lastSoundRef.current) return
-    lastSoundRef.current = key
-    playChime(state.settings.soundTheme || 'default', state.settings.volume || 0.8)
-  }, [announced])
+  const { state } = useSocket()
   const [clock, setClock] = useState(new Date())
   const [isFs, setIsFs] = useState(false)
   const [signageMode, setSignageMode] = useState(false)
@@ -138,6 +128,7 @@ export default function Display() {
 
   return (
     <div className="dsp">
+      <VoiceAnnouncer />
       <div className="dsp-bg" />
 
       {/* Logo */}
@@ -190,7 +181,7 @@ export default function Display() {
         <div className="dsp-content">
           {/* Layout: Classic */}
           {layout === 'classic' && (
-            <div className={`dsp-grid dsp-grid--${Math.min(activeCounters.length, 4)}`}>
+            <div className={`dsp-grid dsp-grid--${activeCounters.length > 12 ? 'many' : activeCounters.length}`}>
               {activeCounters.map(counter => {
                 const ticket = counter.currentTicket ? state.tickets.find(t => t.number === counter.currentTicket) : null
                 const cat = ticket ? state.categories.find(c => c.id === ticket.categoryId) : null

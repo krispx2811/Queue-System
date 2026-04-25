@@ -99,3 +99,46 @@
 .trk-wait-sep { width: 1px; height: 28px; background: var(--border); }
 
 .trk-auto { font-size: 10px; color: var(--gray-3); margin-top: 16px; }
+
+/* Stages progress */
+.trk-stages {
+  margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);
+  text-align: left;
+}
+.trk-stages-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--gray-2); margin-bottom: 12px; text-align: center;
+}
+.trk-stages-list {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.trk-stage {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-radius: 8px;
+  background: var(--bg-subtle); border: 1px solid var(--border);
+  transition: all 0.2s;
+}
+.trk-stage-dot {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-raised); border: 1px solid var(--border);
+  font-family: var(--font-mono); font-weight: 700; font-size: 12px;
+  color: var(--gray-3); flex-shrink: 0;
+}
+.trk-stage-name { font-size: 13px; font-weight: 500; color: var(--gray-2); }
+.trk-stage--done .trk-stage-dot {
+  background: var(--green); border-color: var(--green); color: #fff;
+}
+.trk-stage--done .trk-stage-name { color: var(--gray-2); text-decoration: line-through; opacity: 0.6; }
+.trk-stage--current {
+  background: var(--blue-dim); border-color: rgba(79,143,247,0.3);
+  animation: trkPulse 2s ease-in-out infinite;
+}
+.trk-stage--current .trk-stage-dot {
+  background: var(--blue); border-color: var(--blue); color: #fff;
+}
+.trk-stage--current .trk-stage-name { color: var(--white); font-weight: 700; }
+@keyframes trkPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(79,143,247,0); }
+  50% { box-shadow: 0 0 0 4px rgba(79,143,247,0.1); }
+}

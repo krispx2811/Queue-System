@@ -1,15 +1,22 @@
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { CLINIC_COUNTERS, CLINIC_CATEGORIES } from './clinic-setup.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_FILE = join(__dirname, 'data.json')
 
 const DEFAULT_CATEGORIES = [
-  { id: 'general', name: 'General', nameAr: 'عام', nameUr: 'عمومی', nameFr: 'Général', color: '#4f8ff7', prefix: 'G' },
-  { id: 'payments', name: 'Payments', nameAr: 'المدفوعات', nameUr: 'ادائیگی', nameFr: 'Paiements', color: '#34d399', prefix: 'P' },
-  { id: 'inquiries', name: 'Inquiries', nameAr: 'الاستفسارات', nameUr: 'استفسارات', nameFr: 'Renseignements', color: '#fbbf24', prefix: 'Q' },
-  { id: 'accounts', name: 'New Accounts', nameAr: 'حسابات جديدة', nameUr: 'نئے اکاؤنٹس', nameFr: 'Nouveaux comptes', color: '#a78bfa', prefix: 'A' },
+  { id: 'general', name: 'General', nameAr: 'عام', nameUr: 'عمومی', nameFr: 'Général', color: '#4f8ff7', prefix: 'G', stages: [] },
+  { id: 'payments', name: 'Payments', nameAr: 'المدفوعات', nameUr: 'ادائیگی', nameFr: 'Paiements', color: '#34d399', prefix: 'P', stages: [] },
+  { id: 'inquiries', name: 'Inquiries', nameAr: 'الاستفسارات', nameUr: 'استفسارات', nameFr: 'Renseignements', color: '#fbbf24', prefix: 'Q', stages: [] },
+  { id: 'accounts', name: 'New Accounts', nameAr: 'حسابات جديدة', nameUr: 'نئے اکاؤنٹس', nameFr: 'Nouveaux comptes', color: '#a78bfa', prefix: 'A', stages: [] },
+  { id: 'medical', name: 'Medical Consultation', nameAr: 'استشارة طبية', nameUr: 'طبی مشاورت', nameFr: 'Consultation médicale', color: '#ec4899', prefix: 'M', stages: [
+    { id: 'triage', name: 'Triage' },
+    { id: 'doctor', name: 'Doctor' },
+    { id: 'lab', name: 'Lab Tests' },
+    { id: 'pharmacy', name: 'Pharmacy' },
+  ] },
 ]
 
 const DEFAULT_COUNTERS = [
@@ -70,9 +77,9 @@ export function validateLicenseKey(key) {
 
 function makeDefault() {
   return {
-    license: '',
-    counters: JSON.parse(JSON.stringify(DEFAULT_COUNTERS)),
-    categories: JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)),
+    license: 'QS-KJHG-JHGF-HGFE-GFED-STUV',
+    counters: JSON.parse(JSON.stringify(CLINIC_COUNTERS)),
+    categories: JSON.parse(JSON.stringify(CLINIC_CATEGORIES)),
     tickets: [],
     nextTicketNumber: 1,
     announcements: [],
@@ -88,7 +95,7 @@ function makeDefault() {
     webhooks: [],
     settings: {
       soundTheme: 'default',
-      languages: ['en', 'ar'],
+      languages: ['ar', 'en'],
       uiLang: 'en',
       volume: 0.8,
       theme: 'light',
@@ -99,6 +106,10 @@ function makeDefault() {
       idleTimeout: 0,
       smartRouting: false,
       floorMapEnabled: false,
+      ttsProvider: 'elevenlabs',
+      elevenLabsApiKey: 'sk_edd298b7eed05da619d536b6ea4d36e5157019b7dcc6cb72',
+      elevenLabsVoiceId: 'A9ATTqUUQ6GHu0coCz8t',
+      elevenLabsModel: 'eleven_multilingual_v2',
       backgroundTheme: 'none',
       customCSS: '',
       displayLayout: 'classic',
@@ -135,6 +146,8 @@ export function takeTicket(state, categoryId) {
     number,
     displayNumber: prefix ? `${prefix}-${String(number).padStart(3, '0')}` : String(number).padStart(3, '0'),
     categoryId,
+    currentStage: 0,
+    stageHistory: [],
     status: 'waiting',
     counterId: null,
     createdAt: Date.now(),
@@ -160,10 +173,20 @@ export function callNext(state, counterId) {
     }
   }
 
-  // Find next waiting ticket by number
+  // Find next waiting ticket by number, filtering by stage if assigned
   const validCategories = counter.categoryIds.length > 0 ? counter.categoryIds : state.categories.map(c => c.id)
   const waiting = state.tickets
-    .filter(t => t.status === 'waiting' && validCategories.includes(t.categoryId))
+    .filter(t => {
+      if (t.status !== 'waiting') return false
+      if (!validCategories.includes(t.categoryId)) return false
+      // Stage filtering: if counter has a stageId, only serve tickets at that stage
+      if (counter.stageId) {
+        const cat = state.categories.find(c => c.id === t.categoryId)
+        const ticketStage = cat?.stages?.[t.currentStage || 0]
+        if (!ticketStage || ticketStage.id !== counter.stageId) return false
+      }
+      return true
+    })
     .sort((a, b) => a.number - b.number)
 
   const next = waiting[0]
@@ -425,20 +448,64 @@ export function getAdvancedAnalytics(state) {
 }
 
 // Smart routing — find the best counter for a ticket
-export function findBestCounter(state, categoryId) {
+export function findBestCounter(state, categoryId, stageId = null) {
   const eligible = state.counters.filter(c => {
     if (c.status === 'closed' || !c.operatorName) return false
     if (c.categoryIds.length > 0 && !c.categoryIds.includes(categoryId)) return false
+    // If we're routing for a specific stage, counter must serve that stage (or have no stageId restriction)
+    if (stageId && c.stageId && c.stageId !== stageId) return false
     return true
   })
   if (eligible.length === 0) return null
 
-  // Pick counter with least active tickets
   return eligible.sort((a, b) => {
     const aLoad = state.tickets.filter(t => t.counterId === a.id && t.status === 'serving').length
     const bLoad = state.tickets.filter(t => t.counterId === b.id && t.status === 'serving').length
     return aLoad - bLoad
   })[0]
+}
+
+// Advance ticket to next stage (medical workflow)
+export function advanceTicket(state, counterId) {
+  const counter = state.counters.find(c => c.id === counterId)
+  if (!counter || !counter.currentTicket) return null
+
+  const ticket = state.tickets.find(t => t.number === counter.currentTicket)
+  if (!ticket) return null
+
+  const cat = state.categories.find(c => c.id === ticket.categoryId)
+  const stages = cat?.stages || []
+  const currentStageIdx = ticket.currentStage || 0
+
+  // Record stage completion in history
+  if (stages[currentStageIdx]) {
+    ticket.stageHistory = ticket.stageHistory || []
+    ticket.stageHistory.push({
+      stage: currentStageIdx,
+      stageName: stages[currentStageIdx].name,
+      counterId,
+      completedAt: Date.now(),
+    })
+  }
+
+  // Check if there's a next stage
+  if (currentStageIdx + 1 < stages.length) {
+    // Move to next stage, back to waiting
+    ticket.currentStage = currentStageIdx + 1
+    ticket.status = 'waiting'
+    ticket.counterId = null
+    ticket.calledAt = null
+    counter.currentTicket = null
+    counter.lastActiveAt = Date.now()
+    return { ticket, nextStage: stages[ticket.currentStage], finished: false }
+  } else {
+    // Last stage — complete the ticket
+    ticket.status = 'served'
+    ticket.completedAt = Date.now()
+    counter.currentTicket = null
+    counter.lastActiveAt = Date.now()
+    return { ticket, nextStage: null, finished: true }
+  }
 }
 
 // Check and close idle counters
