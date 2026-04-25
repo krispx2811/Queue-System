@@ -350,12 +350,35 @@ export function callNext(state, counterId) {
   const counter = state.counters.find(c => c.id === counterId)
   if (!counter || counter.status === 'closed') return null
 
-  // Complete current ticket if any
+  // Auto-advance current ticket to next stage (or complete if last stage)
   if (counter.currentTicket) {
     const prev = state.tickets.find(t => t.number === counter.currentTicket)
     if (prev && prev.status === 'serving') {
-      prev.status = 'served'
-      prev.completedAt = Date.now()
+      const cat = state.categories.find(c => c.id === prev.categoryId)
+      const stages = cat?.stages || []
+      const currentIdx = prev.currentStage || 0
+
+      // Record stage completion
+      if (stages[currentIdx]) {
+        prev.stageHistory = prev.stageHistory || []
+        prev.stageHistory.push({
+          stage: currentIdx,
+          stageName: stages[currentIdx].name,
+          counterId,
+          completedAt: Date.now(),
+        })
+      }
+
+      // Advance to next stage (waiting) if there is one, else mark served
+      if (currentIdx + 1 < stages.length) {
+        prev.currentStage = currentIdx + 1
+        prev.status = 'waiting'
+        prev.counterId = null
+        prev.calledAt = null
+      } else {
+        prev.status = 'served'
+        prev.completedAt = Date.now()
+      }
     }
   }
 
