@@ -250,24 +250,51 @@ export default function Admin() {
     )
   }
 
+  const NAV_ITEMS = [
+    { id: 'queue', name: 'Queue', adminOnly: false, icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 4h12M2 8h12M2 12h8"/></svg> },
+    { id: 'analytics', name: 'Analytics', adminOnly: true, icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 13V3M2 13h12M5 10V7M8 10V5M11 10V8"/></svg> },
+    { id: 'announce', name: 'Announcements', adminOnly: true, icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 6v4l8 3V3l-8 3zM3 6H2v4h1"/></svg> },
+    { id: 'categories', name: 'Categories', adminOnly: true, icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg> },
+    { id: 'audit', name: 'Audit Log', adminOnly: true, icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg> },
+    { id: 'settings', name: 'Settings', adminOnly: true, icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6L13 13M3 13l1.4-1.4M11.6 4.4L13 3"/></svg> },
+  ]
+
   return (
     <div className="adm">
-      {/* Top bar */}
-      <header className="adm-bar">
-        <Link to="/" className="adm-back">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 3L5 8l5 5"/></svg>
-        </Link>
-        <div className="adm-bar-info">
-          <span className="adm-bar-counter">{counter.name}</span>
-          <span className="adm-bar-op">{counter.operatorName}</span>
+      {/* Sidebar */}
+      <aside className="adm-sidenav">
+        <div className="adm-sidenav-head">
+          <Link to="/" className="adm-sidenav-back" title="Home">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 3L5 8l5 5"/></svg>
+          </Link>
+          <div className="adm-sidenav-counter">
+            <span className="adm-sidenav-counter-name">{counter.name}</span>
+            <span className="adm-sidenav-counter-op">{counter.operatorName}</span>
+          </div>
         </div>
-        <div className="adm-bar-right">
+
+        <div className="adm-sidenav-list">
+          <div className="adm-sidenav-section">Operations</div>
+          {NAV_ITEMS.filter(item => !item.adminOnly || isAdmin).map(item => (
+            <button
+              key={item.id}
+              className={`adm-sidenav-item ${tab === item.id ? 'adm-sidenav-item--active' : ''}`}
+              onClick={() => { setTab(item.id); if (item.id === 'analytics') loadAnalytics() }}
+            >
+              <span className="adm-sidenav-icon">{item.icon}</span>
+              <span>{item.name}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="adm-sidenav-foot">
           <button
             className={`adm-toggle ${counter.status === 'closed' ? 'adm-toggle--off' : ''}`}
             onClick={() => emitVoid('counter:toggle', { counterId })}
+            style={{ justifyContent: 'center' }}
           >
             <span className="adm-toggle-dot" />
-            {counter.status === 'open' ? 'Open' : 'Closed'}
+            {counter.status === 'open' ? 'Counter Open' : 'Counter Closed'}
           </button>
           {isAdmin ? (
             <button className="adm-leave" onClick={() => { setIsAdmin(false); setTab('queue') }}>
@@ -275,7 +302,7 @@ export default function Admin() {
             </button>
           ) : (
             <button className="adm-admin-btn" onClick={() => setTab('admin-login')}>
-              Admin
+              Admin Access
             </button>
           )}
           <button
@@ -286,12 +313,13 @@ export default function Admin() {
               setOperatorName('')
             }}
           >
-            Leave
+            Leave Counter
           </button>
         </div>
-      </header>
+      </aside>
 
-      {/* Tabs */}
+      {/* Main content */}
+      <div className="adm-shell">
       <nav className="adm-tabs">
         {(isAdmin
           ? ['queue', 'analytics', 'announce', 'categories', 'audit', 'settings']
@@ -1249,6 +1277,7 @@ export default function Admin() {
 
           </div>
         )}
+      </div>
       </div>
 
       {/* Modals */}
