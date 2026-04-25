@@ -119,17 +119,40 @@ Manage walk-in customers with multi-counter support, bilingual voice announcemen
 
 ```bash
 # Clone
-git clone https://github.com/kareem/Queue-System.git
+git clone https://github.com/krispx2811/Queue-System.git
 cd Queue-System
 
 # Install
 npm install
+
+# Configure Supabase
+cp .env.example .env
+# Edit .env with your Supabase credentials
+
+# Run schema once in Supabase SQL Editor (server/schema.sql)
 
 # Run (starts both server + frontend)
 npm run dev
 ```
 
 Open [http://localhost:5173](http://localhost:5173)
+
+---
+
+## Deploy to Render (Free)
+
+One-click deploy from GitHub:
+
+1. Sign up at [render.com](https://render.com)
+2. **New** → **Web Service** → connect your GitHub repo
+3. Render auto-detects `render.yaml`
+4. Add environment variables under "Environment":
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_KEY`
+   - `SUPABASE_ANON_KEY`
+5. Click **Create Web Service** — done in ~3 minutes
+
+**Prevent spin-down:** Render free tier sleeps after 15 min idle. Set up a free monitor at [uptimerobot.com](https://uptimerobot.com) to ping `https://your-app.onrender.com/api/status` every 5 minutes.
 
 ---
 

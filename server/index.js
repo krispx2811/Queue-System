@@ -2,6 +2,9 @@ import express from 'express'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
 import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js'
+import { fileURLToPath } from 'url'
+import { dirname, join } from 'path'
+import { existsSync } from 'fs'
 import {
   loadStore, saveStore,
   takeTicket, callNext, recallTicket, skipTicket, completeTicket,
@@ -465,8 +468,30 @@ io.on('connection', (socket) => {
   socket.on('webhook:list', (_, cb) => cb?.(state.webhooks || []))
 })
 
+// ===== Serve built frontend in production =====
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const distPath = join(__dirname, '..', 'dist')
+
+if (existsSync(distPath)) {
+  app.use(express.static(distPath))
+  // SPA fallback — any non-API route returns index.html
+  app.get(/^\/(?!api|socket\.io).*/, (_, res) => {
+    res.sendFile(join(distPath, 'index.html'))
+  })
+  console.log('✓ Serving frontend from dist/')
+}
+
 const PORT = process.env.PORT || 3210
 http.listen(PORT, () => {
   console.log(`Queue server running on port ${PORT}`)
   console.log(`REST API: http://localhost:${PORT}/api/status`)
 })
+
+// ===== Self-ping to prevent Render free-tier spin-down =====
+const APP_URL = process.env.RENDER_EXTERNAL_URL
+if (APP_URL) {
+  setInterval(() => {
+    fetch(`${APP_URL}/api/status`).catch(() => {})
+  }, 14 * 60 * 1000)
+  console.log(`✓ Self-ping enabled: ${APP_URL}`)
+}
