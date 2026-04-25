@@ -577,6 +577,75 @@
 }
 .adm-voice-preview:hover { background: var(--blue); color: #fff; }
 
+/* Send To picker (non-linear stage routing) */
+.adm-sendto-wrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+}
+.adm-sendto-wrap .adm-act { width: 100%; }
+
+.adm-sendto-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0; right: 0;
+  z-index: 50;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  min-width: 220px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.adm-sendto-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--gray-3);
+  padding: 6px 8px 8px;
+}
+
+.adm-sendto-item {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%;
+  padding: 10px 10px;
+  border-radius: 8px;
+  font-size: 13px; font-weight: 500; color: var(--gray-1);
+  text-align: left;
+  transition: all 0.1s;
+}
+.adm-sendto-item:hover { background: var(--blue-dim); color: var(--blue); }
+.adm-sendto-item--current {
+  background: var(--bg-subtle);
+}
+.adm-sendto-item--finish {
+  color: var(--green);
+}
+.adm-sendto-item--finish:hover {
+  background: var(--green-dim);
+  color: var(--green);
+}
+
+.adm-sendto-num {
+  font-family: var(--font-mono); font-weight: 700; font-size: 11px;
+  width: 20px; height: 20px; border-radius: 5px;
+  background: var(--bg-subtle); color: var(--gray-2);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.adm-sendto-name { flex: 1; font-weight: 600; }
+.adm-sendto-tag {
+  font-size: 9px; font-weight: 600;
+  padding: 2px 6px; border-radius: 4px;
+  background: var(--amber-dim); color: var(--amber);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.adm-sendto-divider {
+  height: 1px; background: var(--border);
+  margin: 4px 4px;
+}
+
 /* Advance button */
 .adm-act--advance {
   background: var(--blue-dim); border-color: rgba(79,143,247,0.3); color: var(--blue);

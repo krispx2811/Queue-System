@@ -89,7 +89,10 @@ export default function Admin() {
       if (e.key === 's' || e.key === 'S') handleSkip()
       if (e.key === 'c' || e.key === 'C') handleComplete()
       if (e.key === 'h' || e.key === 'H') handleHold()
-      if (e.key === 'a' || e.key === 'A') handleAdvance()
+      if (e.key === 'a' || e.key === 'A') {
+        if (hasMultiStage) setSendToOpen(o => !o)
+        else handleAdvance()
+      }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
@@ -120,10 +123,12 @@ export default function Admin() {
     emit('ticket:complete', { counterId })
   }, [counterId, emit])
 
-  const handleAdvance = useCallback(() => {
+  const handleAdvance = useCallback((targetStageId = null) => {
     if (!counterId) return
-    emit('ticket:advance', { counterId })
+    emit('ticket:advance', { counterId, targetStageId })
   }, [counterId, emit])
+
+  const [sendToOpen, setSendToOpen] = useState(false)
 
   const handleHold = useCallback(() => {
     if (!counterId) return
@@ -416,14 +421,35 @@ export default function Admin() {
                 <button className="adm-act" onClick={handleRecall} disabled={!currentTicket}>
                   Recall<kbd>R</kbd>
                 </button>
-                {hasMultiStage && nextStageObj ? (
-                  <button className="adm-act adm-act--advance" onClick={handleAdvance} disabled={!currentTicket}>
-                    → {nextStageObj.name}<kbd>A</kbd>
-                  </button>
-                ) : hasMultiStage && !nextStageObj && currentTicket ? (
-                  <button className="adm-act adm-act--advance" onClick={handleAdvance} disabled={!currentTicket}>
-                    Finish<kbd>A</kbd>
-                  </button>
+                {hasMultiStage ? (
+                  <div className="adm-sendto-wrap">
+                    <button className="adm-act adm-act--advance"
+                      onClick={() => setSendToOpen(o => !o)}
+                      disabled={!currentTicket}>
+                      Send To…<kbd>A</kbd>
+                    </button>
+                    {sendToOpen && currentTicket && (
+                      <div className="adm-sendto-pop">
+                        <div className="adm-sendto-label">Route patient to:</div>
+                        {currentStages.map((stage, idx) => (
+                          <button
+                            key={stage.id}
+                            className={`adm-sendto-item ${idx === currentStageIdx ? 'adm-sendto-item--current' : ''}`}
+                            onClick={() => { handleAdvance(stage.id); setSendToOpen(false) }}
+                          >
+                            <span className="adm-sendto-num">{idx + 1}</span>
+                            <span className="adm-sendto-name">{stage.name}</span>
+                            {idx === currentStageIdx && <span className="adm-sendto-tag">again</span>}
+                          </button>
+                        ))}
+                        <div className="adm-sendto-divider" />
+                        <button className="adm-sendto-item adm-sendto-item--finish"
+                          onClick={() => { handleComplete(); setSendToOpen(false) }}>
+                          ✓ Finish (patient done)
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <button className="adm-act" onClick={handleComplete} disabled={!currentTicket}>
                     Complete<kbd>C</kbd>

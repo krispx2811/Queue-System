@@ -261,8 +261,8 @@ io.on('connection', (socket) => {
     cb?.(ticket)
   })
 
-  socket.on('ticket:advance', ({ counterId }, cb) => {
-    const result = advanceTicket(state, counterId)
+  socket.on('ticket:advance', ({ counterId, targetStageId }, cb) => {
+    const result = advanceTicket(state, counterId, targetStageId)
     if (result) {
       const cName = state.counters.find(c => c.id === counterId)?.name || ''
       const action = result.finished ? 'complete' : `advance → ${result.nextStage?.name}`

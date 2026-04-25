@@ -652,7 +652,9 @@ export function findBestCounter(state, categoryId, stageId = null) {
 }
 
 // Advance ticket to next stage (medical workflow)
-export function advanceTicket(state, counterId) {
+// Advance ticket to a specific stage (by index) or the next stage if not provided.
+// Pass targetStageId to jump to a specific stage by its id (non-linear routing).
+export function advanceTicket(state, counterId, targetStageId = null) {
   const counter = state.counters.find(c => c.id === counterId)
   if (!counter || !counter.currentTicket) return null
 
@@ -674,24 +676,32 @@ export function advanceTicket(state, counterId) {
     })
   }
 
-  // Check if there's a next stage
-  if (currentStageIdx + 1 < stages.length) {
-    // Move to next stage, back to waiting
-    ticket.currentStage = currentStageIdx + 1
+  // Determine target stage
+  let targetIdx
+  if (targetStageId) {
+    targetIdx = stages.findIndex(s => s.id === targetStageId)
+    if (targetIdx === -1) targetIdx = currentStageIdx + 1
+  } else {
+    targetIdx = currentStageIdx + 1
+  }
+
+  // If target is valid, route there
+  if (targetIdx >= 0 && targetIdx < stages.length) {
+    ticket.currentStage = targetIdx
     ticket.status = 'waiting'
     ticket.counterId = null
     ticket.calledAt = null
     counter.currentTicket = null
     counter.lastActiveAt = Date.now()
-    return { ticket, nextStage: stages[ticket.currentStage], finished: false }
-  } else {
-    // Last stage — complete the ticket
-    ticket.status = 'served'
-    ticket.completedAt = Date.now()
-    counter.currentTicket = null
-    counter.lastActiveAt = Date.now()
-    return { ticket, nextStage: null, finished: true }
+    return { ticket, nextStage: stages[targetIdx], finished: false }
   }
+
+  // Otherwise — complete the ticket
+  ticket.status = 'served'
+  ticket.completedAt = Date.now()
+  counter.currentTicket = null
+  counter.lastActiveAt = Date.now()
+  return { ticket, nextStage: null, finished: true }
 }
 
 // Check and close idle counters
