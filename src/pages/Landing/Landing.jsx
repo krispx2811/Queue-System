@@ -1,8 +1,24 @@
-import { Link } from 'react-router-dom'
+import { Link, NavLink } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useSocket } from '../../context/SocketContext'
 import { padNumber } from '../../utils/formatters'
 import './Landing.css'
+
+const PUBLIC_ITEMS = [
+  { to: '/dashboard', label: 'Dashboard', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg> },
+  { to: '/display', label: 'Live Display', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="3" width="12" height="9" rx="1"/><path d="M5 14h6M8 12v2"/></svg> },
+  { to: '/kiosk', label: 'Customer Kiosk', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="2" width="10" height="12" rx="1"/><path d="M6 6h4M6 9h4M6 12h2"/></svg> },
+  { to: '/track', label: 'Track Position', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg> },
+]
+
+const ADMIN_ITEMS = [
+  { to: '/admin', label: 'Operate Counter', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 4h12M2 8h12M2 12h8"/></svg> },
+  { to: '/admin?tab=analytics', label: 'Analytics', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 13V3M2 13h12M5 10V7M8 10V5M11 10V8"/></svg> },
+  { to: '/admin?tab=announce', label: 'Announcements', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 6v4l8 3V3l-8 3zM3 6H2v4h1"/></svg> },
+  { to: '/admin?tab=categories', label: 'Categories', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg> },
+  { to: '/admin?tab=audit', label: 'Audit Log', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="2" width="10" height="12" rx="1"/><path d="M6 6h4M6 9h4M6 12h2"/></svg> },
+  { to: '/admin?tab=settings', label: 'Settings', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6L13 13M3 13l1.4-1.4M11.6 4.4L13 3"/></svg> },
+]
 
 export default function Landing() {
   const { state } = useSocket()
@@ -12,150 +28,157 @@ export default function Landing() {
 
   return (
     <div className="land">
-      <div className="land-bg">
-        <div className="land-orb land-orb--1" />
-        <div className="land-orb land-orb--2" />
-        <div className="land-orb land-orb--3" />
-      </div>
+      {/* Sidebar */}
+      <aside className="land-sidenav">
+        <div className="land-sidenav-head">
+          <div className="land-mark">Q</div>
+          <div>
+            <div className="land-sidenav-title">Queue System</div>
+            <div className="land-sidenav-sub">v1.0</div>
+          </div>
+        </div>
 
-      <div className="land-scroll">
-        <div className="land-inner">
-          {/* Hero */}
-          <motion.div
-            className="land-hero"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <h1 className="land-title">Queue System</h1>
-            <p className="land-subtitle ar">نظام إدارة الطوابير</p>
-          </motion.div>
+        <div className="land-sidenav-list">
+          <div className="land-sidenav-section">Pages</div>
+          {PUBLIC_ITEMS.map(item => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end
+              className={({ isActive }) => `land-sidenav-item ${isActive ? 'land-sidenav-item--active' : ''}`}
+            >
+              <span className="land-sidenav-icon">{item.icon}</span>
+              <span>{item.label}</span>
+            </NavLink>
+          ))}
 
-          {/* Live stats */}
-          <motion.div
-            className="land-stats"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15, duration: 0.5 }}
-          >
-            <div className="land-stat">
-              <span className="land-stat-val">{waiting}</span>
-              <span className="land-stat-label">Waiting</span>
-            </div>
-            <div className="land-stat-sep" />
-            <div className="land-stat">
-              <span className="land-stat-val">{served}</span>
-              <span className="land-stat-label">Served</span>
-            </div>
-            <div className="land-stat-sep" />
-            <div className="land-stat">
-              <span className="land-stat-val">{activeCounters}</span>
-              <span className="land-stat-label">Counters</span>
-            </div>
-          </motion.div>
+          <div className="land-sidenav-section">Admin</div>
+          {ADMIN_ITEMS.map(item => (
+            <Link key={item.to} to={item.to} className="land-sidenav-item">
+              <span className="land-sidenav-icon">{item.icon}</span>
+              <span>{item.label}</span>
+            </Link>
+          ))}
+        </div>
 
-          {/* Primary action */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25, duration: 0.5 }}
-          >
-            <Link to="/dashboard" className="land-primary">
-              <div className="land-primary-inner">
-                <svg className="land-primary-icon" width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+        <div className="land-sidenav-foot">
+          <div className="land-sidenav-foot-stat">
+            <span className="land-sidenav-foot-val">{activeCounters}</span>
+            <span className="land-sidenav-foot-label">counters open</span>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main content */}
+      <div className="land-main">
+        <div className="land-bg">
+          <div className="land-orb land-orb--1" />
+          <div className="land-orb land-orb--2" />
+          <div className="land-orb land-orb--3" />
+        </div>
+
+        <div className="land-scroll">
+          <div className="land-inner">
+            <motion.div
+              className="land-hero"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <h1 className="land-title">Queue System</h1>
+              <p className="land-subtitle ar">نظام إدارة الطوابير</p>
+            </motion.div>
+
+            <motion.div
+              className="land-stats"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15, duration: 0.5 }}
+            >
+              <div className="land-stat">
+                <span className="land-stat-val">{waiting}</span>
+                <span className="land-stat-label">Waiting</span>
+              </div>
+              <div className="land-stat-sep" />
+              <div className="land-stat">
+                <span className="land-stat-val">{served}</span>
+                <span className="land-stat-label">Served</span>
+              </div>
+              <div className="land-stat-sep" />
+              <div className="land-stat">
+                <span className="land-stat-val">{activeCounters}</span>
+                <span className="land-stat-label">Counters</span>
+              </div>
+            </motion.div>
+
+            {/* Quick links grid */}
+            <motion.div
+              className="land-quick"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25, duration: 0.5 }}
+            >
+              <Link to="/dashboard" className="land-quick-card land-quick-card--primary">
+                <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.8">
                   <rect x="2" y="2" width="7" height="7" rx="2" />
                   <rect x="13" y="2" width="7" height="7" rx="2" />
                   <rect x="2" y="13" width="7" height="7" rx="2" />
                   <rect x="13" y="13" width="7" height="7" rx="2" />
                 </svg>
                 <div>
-                  <span className="land-primary-label">Dashboard</span>
-                  <span className="land-primary-desc">Full overview and controls</span>
+                  <span className="land-quick-label">Dashboard</span>
+                  <span className="land-quick-desc">Full overview and controls</span>
                 </div>
-                <svg className="land-primary-arrow" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M7 4l5 5-5 5"/></svg>
-              </div>
-            </Link>
-          </motion.div>
+              </Link>
 
-          {/* Cards grid */}
-          <motion.div
-            className="land-grid"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35, duration: 0.5 }}
-          >
-            <Link to="/admin" className="land-card">
-              <div className="land-card-icon" style={{ background: 'var(--blue-dim)', color: 'var(--blue)' }}>
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                  <circle cx="10" cy="10" r="7" />
-                  <path d="M10 7v3l2 2" />
-                </svg>
-              </div>
-              <span className="land-card-label">Control Panel</span>
-              <span className="land-card-label-ar ar">لوحة التحكم</span>
-            </Link>
-
-            <Link to="/display" className="land-card">
-              <div className="land-card-icon" style={{ background: 'var(--green-dim)', color: 'var(--green)' }}>
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                  <rect x="2" y="3" width="16" height="11" rx="2" />
-                  <path d="M7 17h6M10 14v3" />
-                </svg>
-              </div>
-              <span className="land-card-label">Live Display</span>
-              <span className="land-card-label-ar ar">شاشة العرض</span>
-            </Link>
-
-            <Link to="/kiosk" className="land-card">
-              <div className="land-card-icon" style={{ background: 'var(--amber-dim)', color: 'var(--amber)' }}>
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                  <rect x="4" y="2" width="12" height="16" rx="2" />
-                  <path d="M8 8h4M8 11h4M8 14h2" />
-                  <path d="M4 6h12" />
-                </svg>
-              </div>
-              <span className="land-card-label">Take a Number</span>
-              <span className="land-card-label-ar ar">أخذ رقم</span>
-            </Link>
-
-            <Link to="/track" className="land-card">
-              <div className="land-card-icon" style={{ background: 'rgba(148, 163, 184, 0.1)', color: 'var(--gray-1)' }}>
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                  <circle cx="10" cy="10" r="7" />
-                  <path d="M10 6v4l3 3" />
-                  <path d="M15 2l2 2M3 2L1 4" />
-                </svg>
-              </div>
-              <span className="land-card-label">Track Position</span>
-              <span className="land-card-label-ar ar">تتبع موقعك</span>
-            </Link>
-          </motion.div>
-
-          {/* Currently serving preview */}
-          {state.counters.some(c => c.currentTicket) && (
-            <motion.div
-              className="land-serving"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
-            >
-              <span className="land-serving-label">Now Serving</span>
-              <div className="land-serving-nums">
-                {state.counters.filter(c => c.currentTicket).map(c => {
-                  const t = state.tickets.find(tk => tk.number === c.currentTicket)
-                  if (!t) return null
-                  const cat = state.categories.find(ct => ct.id === t.categoryId)
-                  return (
-                    <div key={c.id} className="land-serving-item">
-                      <span className="land-serving-counter">{c.name}</span>
-                      <span className="land-serving-num">{padNumber(t.number)}</span>
-                      {cat && <span className="land-serving-cat" style={{ color: cat.color }}>{cat.name}</span>}
-                    </div>
-                  )
-                })}
+              <div className="land-quick-row">
+                <Link to="/display" className="land-quick-card">
+                  <div className="land-quick-icon" style={{ background: 'var(--green-dim)', color: 'var(--green)' }}>
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="2" y="3" width="14" height="9" rx="1"/><path d="M6 15h6M9 12v3"/></svg>
+                  </div>
+                  <span className="land-quick-label">Display</span>
+                </Link>
+                <Link to="/kiosk" className="land-quick-card">
+                  <div className="land-quick-icon" style={{ background: 'var(--amber-dim)', color: 'var(--amber)' }}>
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="4" y="2" width="10" height="14" rx="1"/><path d="M7 6h4M7 9h4M7 12h2"/></svg>
+                  </div>
+                  <span className="land-quick-label">Kiosk</span>
+                </Link>
+                <Link to="/track" className="land-quick-card">
+                  <div className="land-quick-icon" style={{ background: 'rgba(148,163,184,0.1)', color: 'var(--gray-1)' }}>
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="9" cy="9" r="6"/><path d="M9 6v3l2 2"/></svg>
+                  </div>
+                  <span className="land-quick-label">Track</span>
+                </Link>
               </div>
             </motion.div>
-          )}
+
+            {/* Currently serving preview */}
+            {state.counters.some(c => c.currentTicket) && (
+              <motion.div
+                className="land-serving"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+              >
+                <span className="land-serving-label">Now Serving</span>
+                <div className="land-serving-nums">
+                  {state.counters.filter(c => c.currentTicket).map(c => {
+                    const t = state.tickets.find(tk => tk.number === c.currentTicket)
+                    if (!t) return null
+                    const cat = state.categories.find(ct => ct.id === t.categoryId)
+                    return (
+                      <div key={c.id} className="land-serving-item">
+                        <span className="land-serving-counter">{c.name}</span>
+                        <span className="land-serving-num">{t.displayNumber || padNumber(t.number)}</span>
+                        {cat && <span className="land-serving-cat" style={{ color: cat.color }}>{cat.name}</span>}
+                      </div>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            )}
+          </div>
         </div>
       </div>
     </div>

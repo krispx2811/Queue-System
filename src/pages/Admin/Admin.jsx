@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSocket } from '../../context/SocketContext'
 import { testSpeak, fetchElevenLabsVoices } from '../../hooks/useVoice'
@@ -43,7 +43,9 @@ export default function Admin() {
       setAdminToast(true); setTimeout(() => setAdminToast(false), 2500)
     } else setAdminPwError(true)
   }
-  const [tab, setTab] = useState('queue')
+  const [searchParams] = useSearchParams()
+  const initialTab = searchParams.get('tab') || 'queue'
+  const [tab, setTab] = useState(initialTab)
   const [confirmReset, setConfirmReset] = useState(false)
   const [transferModal, setTransferModal] = useState(null)
   const [noteModal, setNoteModal] = useState(null)
@@ -193,8 +195,8 @@ export default function Admin() {
     downloadCSV(csv)
   }
 
-  // Counter selection screen
-  if (!counter?.operatorName) {
+  // Counter selection screen — only block when on queue tab
+  if (!counter?.operatorName && tab === 'queue') {
     return (
       <div className="adm">
         <div className="adm-join">
@@ -268,8 +270,8 @@ export default function Admin() {
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 3L5 8l5 5"/></svg>
           </Link>
           <div className="adm-sidenav-counter">
-            <span className="adm-sidenav-counter-name">{counter.name}</span>
-            <span className="adm-sidenav-counter-op">{counter.operatorName}</span>
+            <span className="adm-sidenav-counter-name">{counter?.name || 'Admin'}</span>
+            <span className="adm-sidenav-counter-op">{counter?.operatorName || 'Not joined'}</span>
           </div>
         </div>
 
@@ -288,14 +290,16 @@ export default function Admin() {
         </div>
 
         <div className="adm-sidenav-foot">
-          <button
-            className={`adm-toggle ${counter.status === 'closed' ? 'adm-toggle--off' : ''}`}
-            onClick={() => emitVoid('counter:toggle', { counterId })}
-            style={{ justifyContent: 'center' }}
-          >
-            <span className="adm-toggle-dot" />
-            {counter.status === 'open' ? 'Counter Open' : 'Counter Closed'}
-          </button>
+          {counter && (
+            <button
+              className={`adm-toggle ${counter.status === 'closed' ? 'adm-toggle--off' : ''}`}
+              onClick={() => emitVoid('counter:toggle', { counterId })}
+              style={{ justifyContent: 'center' }}
+            >
+              <span className="adm-toggle-dot" />
+              {counter.status === 'open' ? 'Counter Open' : 'Counter Closed'}
+            </button>
+          )}
           {isAdmin ? (
             <button className="adm-leave" onClick={() => { setIsAdmin(false); setTab('queue') }}>
               Exit Admin
@@ -305,16 +309,18 @@ export default function Admin() {
               Admin Access
             </button>
           )}
-          <button
-            className="adm-leave"
-            onClick={() => {
-              emitVoid('counter:update', { counterId, operatorName: '' })
-              setCounterId(null)
-              setOperatorName('')
-            }}
-          >
-            Leave Counter
-          </button>
+          {counter && (
+            <button
+              className="adm-leave"
+              onClick={() => {
+                emitVoid('counter:update', { counterId, operatorName: '' })
+                setCounterId(null)
+                setOperatorName('')
+              }}
+            >
+              Leave Counter
+            </button>
+          )}
         </div>
       </aside>
 
@@ -1171,6 +1177,7 @@ export default function Admin() {
                       <span style={{ fontSize: 12, color: 'var(--gray-2)' }}>min</span>
                     </div>
                   </div>
+                  {counter && (
                   <div className="sg-field">
                     <label className="sg-label">Counter Categories</label>
                     <p className="sg-hint">This counter serves (empty = all)</p>
@@ -1185,10 +1192,11 @@ export default function Admin() {
                       ))}
                     </div>
                   </div>
+                  )}
                 </div>
 
                 {/* Stage assignment */}
-                {(() => {
+                {counter && (() => {
                   const allStages = []
                   const seen = new Set()
                   state.categories.forEach(cat => {
