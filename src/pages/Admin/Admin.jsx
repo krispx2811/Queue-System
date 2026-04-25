@@ -507,9 +507,6 @@ export default function Admin() {
                 </div>
               )}
 
-              <div className="adm-bottom-actions">
-                <button className="adm-act adm-act--danger" onClick={() => setConfirmReset(true)}>Reset Queue</button>
-              </div>
             </div>
 
             {/* Waiting list sidebar */}

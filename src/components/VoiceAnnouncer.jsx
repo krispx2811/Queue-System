@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useSocket } from '../context/SocketContext'
 import { playChime } from '../utils/sounds'
-import { t } from '../utils/i18n'
+import { t, translateRoom } from '../utils/i18n'
 import { speakSequential, stopAll } from '../hooks/useVoice'
 
 export default function VoiceAnnouncer() {
@@ -31,7 +31,8 @@ export default function VoiceAnnouncer() {
         for (let i = 0; i < languages.length; i++) {
           const lang = languages[i]
           const textKey = item.action === 'recall' ? 'voiceRecall' : 'voiceNowServing'
-          const text = t(textKey, lang, { n: item.ticketNumber, counter: item.counterName || '' })
+          const counterTranslated = translateRoom(item.counterName || '', lang)
+          const text = t(textKey, lang, { n: item.ticketNumber, counter: counterTranslated })
 
           window.speechSynthesis?.cancel()
           await speakSequential(text, lang, settingsRef.current)

@@ -32,6 +32,21 @@ setInterval(() => {
   }
 }, 30000)
 
+// ===== Daily auto-reset at 1:00 AM =====
+let lastResetDate = null
+setInterval(async () => {
+  const now = new Date()
+  const todayStr = now.toDateString()
+  // Trigger between 1:00 and 1:01 AM, only once per day
+  if (now.getHours() === 1 && now.getMinutes() === 0 && lastResetDate !== todayStr) {
+    lastResetDate = todayStr
+    await resetQueue(state)
+    addAudit(state, 'admin:auto-reset', 'system', 'Daily 1:00 AM reset')
+    console.log('✓ Daily queue auto-reset triggered at 1:00 AM')
+    broadcast()
+  }
+}, 30000)
+
 function broadcast() {
   io.emit('state:sync', getPublicState())
   // Persist every mutation (saveStore is throttled internally to 2s max)
@@ -372,9 +387,9 @@ io.on('connection', (socket) => {
   })
 
   // ---- Admin ops ----
-  socket.on('admin:reset', () => {
+  socket.on('admin:reset', async () => {
     addAudit(state, 'admin:reset', '', 'Queue reset')
-    resetQueue(state)
+    await resetQueue(state)
     broadcast()
   })
 

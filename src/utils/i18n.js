@@ -318,6 +318,74 @@ const translations = {
 
 const langCodes = { en: 'en-US', ar: 'ar-SA', ur: 'ur-PK', fr: 'fr-FR' }
 
+// Counter / room name translations — used in voice announcements
+// so "Reception 1" becomes "الاستقبال 1" in Arabic, etc.
+const ROOM_TERMS = {
+  ar: {
+    'reception': 'الاستقبال',
+    'opd': 'العيادة الخارجية',
+    'doctor': 'الطبيب',
+    'optometrist': 'اختصاصي النظر',
+    'eye drops': 'قطرات العين',
+    'pre-op': 'ما قبل العملية',
+    'pre op': 'ما قبل العملية',
+    'surgery': 'الجراحة',
+    'pharmacy': 'الصيدلية',
+    'counter': 'الشباك',
+    'lab': 'المختبر',
+    'lab tests': 'المختبر',
+    'triage': 'الفرز',
+    'room': 'الغرفة',
+  },
+  ur: {
+    'reception': 'استقبالیہ',
+    'opd': 'بیرونی مریض',
+    'doctor': 'ڈاکٹر',
+    'optometrist': 'آنکھوں کا ماہر',
+    'eye drops': 'آنکھوں کے قطرے',
+    'pre-op': 'آپریشن سے پہلے',
+    'pre op': 'آپریشن سے پہلے',
+    'surgery': 'سرجری',
+    'pharmacy': 'فارمیسی',
+    'counter': 'کاؤنٹر',
+    'lab': 'لیب',
+    'lab tests': 'لیب ٹیسٹ',
+    'triage': 'ٹرائج',
+    'room': 'کمرہ',
+  },
+  fr: {
+    'reception': 'Réception',
+    'opd': 'Consultation externe',
+    'doctor': 'Médecin',
+    'optometrist': 'Optométriste',
+    'eye drops': 'Gouttes pour les yeux',
+    'pre-op': 'Pré-opératoire',
+    'pre op': 'Pré-opératoire',
+    'surgery': 'Chirurgie',
+    'pharmacy': 'Pharmacie',
+    'counter': 'Guichet',
+    'lab': 'Laboratoire',
+    'lab tests': 'Laboratoire',
+    'triage': 'Triage',
+    'room': 'Salle',
+  },
+}
+
+// Translate a room/counter name like "Reception 1" → "الاستقبال 1"
+export function translateRoom(name, lang) {
+  if (!name || lang === 'en') return name || ''
+  const terms = ROOM_TERMS[lang]
+  if (!terms) return name
+  let result = name
+  // Sort by length desc so longer phrases match first ("eye drops" before "drops")
+  const keys = Object.keys(terms).sort((a, b) => b.length - a.length)
+  for (const key of keys) {
+    const regex = new RegExp(`\\b${key.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'gi')
+    result = result.replace(regex, terms[key])
+  }
+  return result
+}
+
 export function t(key, lang = 'en', params = {}) {
   let text = translations[lang]?.[key] || translations.en[key] || key
   Object.entries(params).forEach(([k, v]) => {

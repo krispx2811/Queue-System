@@ -98,7 +98,7 @@ function makeDefault() {
     auditLog: [],
     shifts: [],
     roles: {
-      adminPassword: '',
+      adminPassword: '2811',
       operatorPassword: '',
       viewerPassword: '',
     },
@@ -575,10 +575,18 @@ export function addNote(state, ticketNumber, note) {
   return ticket
 }
 
-export function resetQueue(state) {
+export async function resetQueue(state) {
   state.tickets = []
   state.nextTicketNumber = 1
   state.counters.forEach(c => { c.currentTicket = null })
+  // Also wipe tickets table in Supabase (otherwise old rows linger)
+  if (supabase) {
+    try {
+      await supabase.from('tickets').delete().neq('number', 0)
+    } catch (e) {
+      console.error('Failed to clear tickets in Supabase:', e.message)
+    }
+  }
 }
 
 export function getAnalytics(state) {

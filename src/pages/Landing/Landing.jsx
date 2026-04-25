@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useSocket } from '../../context/SocketContext'
 import { padNumber } from '../../utils/formatters'
 import './Landing.css'
@@ -51,10 +52,34 @@ const ADMIN_GROUPS = [
 ]
 
 export default function Landing() {
-  const { state } = useSocket()
+  const { state, emit } = useSocket()
   const waiting = state.tickets.filter(t => t.status === 'waiting').length
   const served = state.tickets.filter(t => t.status === 'served').length
   const activeCounters = state.counters.filter(c => c.status === 'open').length
+
+  const [isAdmin, setIsAdmin] = useState(() => sessionStorage.getItem('queueIsAdmin') === 'true')
+  const [pwModal, setPwModal] = useState(false)
+  const [pwInput, setPwInput] = useState('')
+  const [pwError, setPwError] = useState(false)
+
+  const handleUnlock = async () => {
+    if (!pwInput.trim()) return
+    const ok = await emit('auth:check', { password: pwInput.trim(), role: 'admin' })
+    if (ok) {
+      setIsAdmin(true)
+      sessionStorage.setItem('queueIsAdmin', 'true')
+      setPwModal(false)
+      setPwInput('')
+      setPwError(false)
+    } else {
+      setPwError(true)
+    }
+  }
+
+  const handleLock = () => {
+    setIsAdmin(false)
+    sessionStorage.setItem('queueIsAdmin', 'false')
+  }
 
   return (
     <div className="land">
@@ -69,33 +94,56 @@ export default function Landing() {
         </div>
 
         <div className="land-sidenav-list">
-          <div className="land-sidenav-section">Pages</div>
-          {PUBLIC_ITEMS.map(item => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end
-              className={({ isActive }) => `land-sidenav-item ${isActive ? 'land-sidenav-item--active' : ''}`}
-            >
-              <span className="land-sidenav-icon">{item.icon}</span>
-              <span>{item.label}</span>
-            </NavLink>
-          ))}
+          {/* Always visible — Operate Counter only */}
+          <div className="land-sidenav-section">Operations</div>
+          <Link to="/admin" className="land-sidenav-item">
+            <span className="land-sidenav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 4h12M2 8h12M2 12h8"/></svg></span>
+            <span>Operate Counter</span>
+          </Link>
 
-          {ADMIN_GROUPS.map(group => (
-            <div key={group.title}>
-              <div className="land-sidenav-section">{group.title}</div>
-              {group.items.map(item => (
-                <Link key={item.to} to={item.to} className="land-sidenav-item">
+          {/* Admin-locked items */}
+          {isAdmin && (
+            <>
+              <div className="land-sidenav-section">Pages</div>
+              {PUBLIC_ITEMS.map(item => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end
+                  className={({ isActive }) => `land-sidenav-item ${isActive ? 'land-sidenav-item--active' : ''}`}
+                >
                   <span className="land-sidenav-icon">{item.icon}</span>
                   <span>{item.label}</span>
-                </Link>
+                </NavLink>
               ))}
-            </div>
-          ))}
+
+              {ADMIN_GROUPS.map(group => (
+                <div key={group.title}>
+                  <div className="land-sidenav-section">{group.title}</div>
+                  {group.items.filter(i => i.to !== '/admin').map(item => (
+                    <Link key={item.to} to={item.to} className="land-sidenav-item">
+                      <span className="land-sidenav-icon">{item.icon}</span>
+                      <span>{item.label}</span>
+                    </Link>
+                  ))}
+                </div>
+              ))}
+            </>
+          )}
         </div>
 
         <div className="land-sidenav-foot">
+          {isAdmin ? (
+            <button className="land-sidenav-lock land-sidenav-lock--unlocked" onClick={handleLock}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="7" width="10" height="7" rx="1"/><path d="M5 7V4a3 3 0 016 0"/></svg>
+              Lock Admin
+            </button>
+          ) : (
+            <button className="land-sidenav-lock" onClick={() => setPwModal(true)}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="7" width="10" height="7" rx="1"/><path d="M5 7V4a3 3 0 016 0v3"/></svg>
+              Unlock Admin
+            </button>
+          )}
           <div className="land-sidenav-foot-stat">
             <span className="land-sidenav-foot-val">{activeCounters}</span>
             <span className="land-sidenav-foot-label">counters open</span>
@@ -215,6 +263,37 @@ export default function Landing() {
           </div>
         </div>
       </div>
+
+      {/* Admin password modal */}
+      <AnimatePresence>
+        {pwModal && (
+          <motion.div className="land-pw-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.div className="land-pw-card"
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}>
+              <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="var(--blue)" strokeWidth="1.5" style={{ marginBottom: 12 }}>
+                <rect x="5" y="13" width="18" height="12" rx="2"/>
+                <path d="M9 13V8a5 5 0 0110 0v5"/>
+              </svg>
+              <h2>Admin Access</h2>
+              <p>Enter the admin password to unlock all features.</p>
+              <input
+                className="land-pw-input"
+                type="password"
+                placeholder="Password"
+                value={pwInput}
+                onChange={e => { setPwInput(e.target.value); setPwError(false) }}
+                onKeyDown={e => e.key === 'Enter' && handleUnlock()}
+                autoFocus
+              />
+              {pwError && <div className="land-pw-error">Wrong password</div>}
+              <div className="land-pw-btns">
+                <button className="land-pw-btn land-pw-btn--cancel" onClick={() => { setPwModal(false); setPwInput(''); setPwError(false) }}>Cancel</button>
+                <button className="land-pw-btn land-pw-btn--ok" onClick={handleUnlock}>Unlock</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
