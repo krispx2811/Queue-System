@@ -34,6 +34,8 @@ setInterval(() => {
 
 function broadcast() {
   io.emit('state:sync', getPublicState())
+  // Persist every mutation (saveStore is throttled internally to 2s max)
+  saveStore(state)
 }
 
 function isLicensed() {
@@ -397,9 +399,12 @@ io.on('connection', (socket) => {
   socket.on('admin:shifts', (_, cb) => cb?.(state.shifts.slice(-100)))
 
   // ---- Settings ----
-  socket.on('settings:update', (settings) => {
+  socket.on('settings:update', async (settings, cb) => {
     Object.assign(state.settings, settings)
     broadcast()
+    // Force immediate save so settings never get lost
+    await saveStore(state, { force: true })
+    cb?.({ saved: true })
   })
 
   // ---- Track ----
@@ -497,6 +502,20 @@ http.listen(PORT, () => {
   console.log(`Queue server running on port ${PORT}`)
   console.log(`REST API: http://localhost:${PORT}/api/status`)
 })
+
+// ===== Graceful shutdown — flush state to Supabase before exit =====
+async function shutdown(signal) {
+  console.log(`\n${signal} received — flushing state to Supabase...`)
+  try {
+    await saveStore(state, { force: true })
+    console.log('✓ Final state saved')
+  } catch (e) {
+    console.error('Failed to save on shutdown:', e.message)
+  }
+  process.exit(0)
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'))
+process.on('SIGINT', () => shutdown('SIGINT'))
 
 // ===== Self-ping to prevent Render free-tier spin-down =====
 const APP_URL = process.env.RENDER_EXTERNAL_URL

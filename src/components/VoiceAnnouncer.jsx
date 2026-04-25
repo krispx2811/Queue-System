@@ -6,21 +6,22 @@ import { speakSequential, stopAll } from '../hooks/useVoice'
 
 export default function VoiceAnnouncer() {
   const { state, announced } = useSocket()
-  const busyRef = useRef(false)
-  const lastKeyRef = useRef('')
+  const queueRef = useRef([])
+  const processingRef = useRef(false)
+  const seenKeysRef = useRef(new Set())
+  const settingsRef = useRef(state.settings)
 
-  useEffect(() => {
-    if (!announced) return
+  // Keep latest settings accessible to the async processor
+  useEffect(() => { settingsRef.current = state.settings }, [state.settings])
 
-    const key = `${announced.ticketNumber}-${announced.action}-${announced.counterId}`
-    if (key === lastKeyRef.current) return
-    lastKeyRef.current = key
+  // Process the queue one announcement at a time
+  const processQueue = async () => {
+    if (processingRef.current) return
+    processingRef.current = true
 
-    if (busyRef.current) return
-    busyRef.current = true
-
-    const run = async () => {
-      const { soundTheme = 'default', languages = ['en', 'ar'], volume = 0.8 } = state.settings
+    while (queueRef.current.length > 0) {
+      const item = queueRef.current.shift()
+      const { soundTheme = 'default', languages = ['en', 'ar'], volume = 0.8 } = settingsRef.current
 
       try {
         stopAll()
@@ -29,23 +30,49 @@ export default function VoiceAnnouncer() {
 
         for (let i = 0; i < languages.length; i++) {
           const lang = languages[i]
-          const textKey = announced.action === 'recall' ? 'voiceRecall' : 'voiceNowServing'
-          const text = t(textKey, lang, { n: announced.ticketNumber, counter: announced.counterName || '' })
+          const textKey = item.action === 'recall' ? 'voiceRecall' : 'voiceNowServing'
+          const text = t(textKey, lang, { n: item.ticketNumber, counter: item.counterName || '' })
 
           window.speechSynthesis?.cancel()
-
-          await speakSequential(text, lang, state.settings)
+          await speakSequential(text, lang, settingsRef.current)
 
           if (i < languages.length - 1) {
             await new Promise(r => setTimeout(r, 800))
           }
         }
-      } finally {
-        busyRef.current = false
+
+        // Pause between separate announcements so they don't run together
+        if (queueRef.current.length > 0) {
+          await new Promise(r => setTimeout(r, 600))
+        }
+      } catch (e) {
+        console.error('Voice announcement failed:', e)
       }
     }
 
-    run()
+    processingRef.current = false
+  }
+
+  // When a new announcement arrives, queue it and kick the processor
+  useEffect(() => {
+    if (!announced) return
+
+    const key = `${announced.ticketNumber}-${announced.action}-${announced.counterId}-${announced.calledAt || ''}`
+    if (seenKeysRef.current.has(key)) return
+    seenKeysRef.current.add(key)
+    // Trim memory of seen keys
+    if (seenKeysRef.current.size > 200) {
+      seenKeysRef.current = new Set(Array.from(seenKeysRef.current).slice(-100))
+    }
+
+    queueRef.current.push({
+      ticketNumber: announced.ticketNumber,
+      action: announced.action,
+      counterId: announced.counterId,
+      counterName: announced.counterName,
+    })
+
+    processQueue()
   }, [announced])
 
   return null

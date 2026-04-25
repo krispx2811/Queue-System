@@ -237,9 +237,9 @@ let savePending = false
 let lastAuditCount = 0
 let lastShiftCount = 0
 
-export async function saveStore(state) {
+export async function saveStore(state, { force = false } = {}) {
   const now = Date.now()
-  if (now - lastSave < 2000) {
+  if (!force && now - lastSave < 2000) {
     if (!savePending) {
       savePending = true
       setTimeout(() => { savePending = false; saveStore(state) }, 2000 - (now - lastSave))

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSocket } from '../../context/SocketContext'
@@ -20,6 +20,16 @@ export default function Admin() {
   const [adminPwInput, setAdminPwInput] = useState('')
   const [adminPwError, setAdminPwError] = useState(false)
   const [adminToast, setAdminToast] = useState(false)
+  const [savedToast, setSavedToast] = useState(false)
+  const savedToastTimerRef = useRef(null)
+
+  const updateSettings = useCallback((updates) => {
+    emit('settings:update', updates).then(() => {
+      setSavedToast(true)
+      if (savedToastTimerRef.current) clearTimeout(savedToastTimerRef.current)
+      savedToastTimerRef.current = setTimeout(() => setSavedToast(false), 1200)
+    })
+  }, [emit])
   const [elevenVoices, setElevenVoices] = useState([])
   const [elevenLoading, setElevenLoading] = useState(false)
 
@@ -45,6 +55,10 @@ export default function Admin() {
   }
   const [searchParams] = useSearchParams()
   const initialTab = searchParams.get('tab') || 'queue'
+  const sectionParam = searchParams.get('section') || ''
+  const sectionDefaults = { categories: 'services', audit: 'log', settings: 'appearance' }
+  const section = sectionParam || sectionDefaults[initialTab] || ''
+  const showSection = (id) => section === id
   const [tab, setTab] = useState(initialTab)
   const [confirmReset, setConfirmReset] = useState(false)
   const [transferModal, setTransferModal] = useState(null)
@@ -309,15 +323,6 @@ export default function Admin() {
             >
               <span className="adm-toggle-dot" />
               {counter.status === 'open' ? 'Counter Open' : 'Counter Closed'}
-            </button>
-          )}
-          {isAdmin ? (
-            <button className="adm-leave" onClick={() => { setIsAdmin(false); setTab('queue') }}>
-              Exit Admin
-            </button>
-          ) : (
-            <button className="adm-admin-btn" onClick={() => setTab('admin-login')}>
-              Admin Access
             </button>
           )}
           {counter && (
@@ -734,6 +739,7 @@ export default function Admin() {
         {/* CATEGORIES TAB */}
         {tab === 'categories' && (
           <div className="adm-settings">
+            {showSection('services') && (
             <div className="adm-set-section">
               <h3>Service Categories</h3>
               <div className="adm-cat-list">
@@ -778,7 +784,9 @@ export default function Admin() {
                 ))}
               </div>
             </div>
+            )}
 
+            {showSection('services') && (
             <div className="adm-set-section">
               <h3>Add Category</h3>
               <div className="adm-announce-form">
@@ -794,7 +802,9 @@ export default function Admin() {
                 }}>Add</button>
               </div>
             </div>
+            )}
 
+            {showSection('counters') && (
             <div className="adm-set-section">
               <h3>Counters</h3>
               <div className="adm-cat-list">
@@ -811,8 +821,10 @@ export default function Admin() {
               </div>
               <button className="adm-act" style={{ marginTop: 8 }} onClick={() => emit('counter:add', {})}>+ Add Counter</button>
             </div>
+            )}
 
             {/* Branches */}
+            {showSection('branches') && (
             <div className="adm-set-section">
               <h3>Branches</h3>
               <div className="adm-cat-list">
@@ -837,8 +849,10 @@ export default function Admin() {
                 }}>Add</button>
               </div>
             </div>
+            )}
 
             {/* Webhooks */}
+            {showSection('webhooks') && (
             <div className="adm-set-section">
               <h3>Webhooks</h3>
               <p className="adm-set-hint">POST notifications to external URLs on queue events</p>
@@ -858,12 +872,14 @@ export default function Admin() {
                 }}>Add</button>
               </div>
             </div>
+            )}
           </div>
         )}
 
         {/* AUDIT TAB */}
         {tab === 'audit' && (
           <div className="adm-settings">
+            {showSection('log') && (
             <div className="adm-set-section">
               <h3>Audit Log</h3>
               <div className="adm-audit-list">
@@ -878,7 +894,9 @@ export default function Admin() {
                 {(!state.auditLog || state.auditLog.length === 0) && <p className="adm-empty">No activity logged yet</p>}
               </div>
             </div>
+            )}
 
+            {showSection('shifts') && (
             <div className="adm-set-section">
               <h3>Shift History</h3>
               <div className="adm-audit-list">
@@ -894,8 +912,10 @@ export default function Admin() {
                 {(!state.shifts || state.shifts.length === 0) && <p className="adm-empty">No shifts recorded</p>}
               </div>
             </div>
+            )}
 
             {/* Passwords */}
+            {showSection('access') && (
             <div className="adm-set-section">
               <h3>Access Passwords</h3>
               <p className="adm-set-hint">Set passwords to restrict access (leave empty for no restriction)</p>
@@ -916,6 +936,7 @@ export default function Admin() {
                 }}>Save Passwords</button>
               </div>
             </div>
+            )}
           </div>
         )}
 
@@ -924,6 +945,7 @@ export default function Admin() {
           <div className="adm-settings adm-settings--redesign">
 
             {/* GROUP: Appearance */}
+            {showSection('appearance') && (
             <div className="sg">
               <div className="sg-head">
                 <svg className="sg-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="9" cy="9" r="7"/><path d="M9 2a7 7 0 000 14"/></svg>
@@ -936,7 +958,7 @@ export default function Admin() {
                     <div className="adm-set-options">
                       {['light', 'dark'].map(th => (
                         <button key={th} className={`adm-set-opt ${state.settings.theme === th ? 'adm-set-opt--active' : ''}`}
-                          onClick={() => emitVoid('settings:update', { theme: th })}>{th === 'light' ? 'Light' : 'Dark'}</button>
+                          onClick={() => updateSettings({ theme: th })}>{th === 'light' ? 'Light' : 'Dark'}</button>
                       ))}
                     </div>
                   </div>
@@ -945,7 +967,7 @@ export default function Admin() {
                     <div className="adm-set-options">
                       {LANGUAGES.map(lang => (
                         <button key={lang.code} className={`adm-set-opt ${state.settings.uiLang === lang.code ? 'adm-set-opt--active' : ''}`}
-                          onClick={() => emitVoid('settings:update', { uiLang: lang.code })}>{lang.native}</button>
+                          onClick={() => updateSettings({ uiLang: lang.code })}>{lang.native}</button>
                       ))}
                     </div>
                   </div>
@@ -955,11 +977,11 @@ export default function Admin() {
                   <div className="adm-set-colors">
                     {['#4f8ff7', '#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f97316', '#fbbf24', '#34d399', '#06b6d4', '#64748b'].map(c => (
                       <button key={c} className={`adm-set-color ${state.settings.accentColor === c ? 'adm-set-color--active' : ''}`}
-                        style={{ background: c }} onClick={() => emitVoid('settings:update', { accentColor: c })} />
+                        style={{ background: c }} onClick={() => updateSettings({ accentColor: c })} />
                     ))}
                     <label className="adm-set-color-custom">
                       <input type="color" value={state.settings.accentColor || '#4f8ff7'}
-                        onChange={e => emitVoid('settings:update', { accentColor: e.target.value })} />
+                        onChange={e => updateSettings({ accentColor: e.target.value })} />
                       Custom
                     </label>
                   </div>
@@ -968,7 +990,7 @@ export default function Admin() {
                   <label className="sg-label">Logo URL</label>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <input className="adm-input" type="text" placeholder="https://example.com/logo.png"
-                      value={state.settings.logoUrl || ''} onChange={e => emitVoid('settings:update', { logoUrl: e.target.value })} />
+                      value={state.settings.logoUrl || ''} onChange={e => updateSettings({ logoUrl: e.target.value })} />
                     {state.settings.logoUrl && <img src={state.settings.logoUrl} style={{ height: 32, borderRadius: 6 }} alt="" />}
                   </div>
                 </div>
@@ -977,14 +999,16 @@ export default function Admin() {
                   <div className="adm-set-options">
                     {['none', 'particles', 'waves', 'gradient', 'aurora'].map(bg => (
                       <button key={bg} className={`adm-set-opt ${state.settings.backgroundTheme === bg ? 'adm-set-opt--active' : ''}`}
-                        onClick={() => emitVoid('settings:update', { backgroundTheme: bg })}>{bg}</button>
+                        onClick={() => updateSettings({ backgroundTheme: bg })}>{bg}</button>
                     ))}
                   </div>
                 </div>
               </div>
             </div>
+            )}
 
             {/* GROUP: Sound & Voice */}
+            {showSection('sound') && (
             <div className="sg">
               <div className="sg-head">
                 <svg className="sg-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 7v4h3l4 4V3L6 7H3z"/><path d="M13 6.5a3.5 3.5 0 010 5"/></svg>
@@ -1000,7 +1024,7 @@ export default function Admin() {
                       { id: 'elevenlabs', name: 'ElevenLabs (HD AI voices)' },
                     ].map(p => (
                       <button key={p.id} className={`adm-set-opt ${(state.settings.ttsProvider || 'google') === p.id ? 'adm-set-opt--active' : ''}`}
-                        onClick={() => emitVoid('settings:update', { ttsProvider: p.id })}>
+                        onClick={() => updateSettings({ ttsProvider: p.id })}>
                         {p.name}
                       </button>
                     ))}
@@ -1016,7 +1040,7 @@ export default function Admin() {
                       <input className="adm-input" type="password"
                         placeholder="sk_..."
                         value={state.settings.elevenLabsApiKey || ''}
-                        onChange={e => emitVoid('settings:update', { elevenLabsApiKey: e.target.value })} />
+                        onChange={e => updateSettings({ elevenLabsApiKey: e.target.value })} />
                     </div>
 
                     {state.settings.elevenLabsApiKey && (
@@ -1037,7 +1061,7 @@ export default function Admin() {
                               return (
                                 <button key={id}
                                   className={`adm-voice-card ${state.settings.elevenLabsVoiceId === id ? 'adm-voice-card--active' : ''}`}
-                                  onClick={() => emitVoid('settings:update', { elevenLabsVoiceId: id })}>
+                                  onClick={() => updateSettings({ elevenLabsVoiceId: id })}>
                                   <div className="adm-voice-name">{v.name}</div>
                                   {v.labels && (
                                     <div className="adm-voice-labels">
@@ -1070,7 +1094,7 @@ export default function Admin() {
                           { id: 'eleven_flash_v2_5', name: 'Flash v2.5 (fastest)' },
                         ].map(m => (
                           <button key={m.id} className={`adm-set-opt ${state.settings.elevenLabsModel === m.id ? 'adm-set-opt--active' : ''}`}
-                            onClick={() => emitVoid('settings:update', { elevenLabsModel: m.id })}>
+                            onClick={() => updateSettings({ elevenLabsModel: m.id })}>
                             {m.name}
                           </button>
                         ))}
@@ -1085,14 +1109,14 @@ export default function Admin() {
                     <div className="adm-set-options">
                       {SOUND_THEMES.map(theme => (
                         <button key={theme} className={`adm-set-opt ${state.settings.soundTheme === theme ? 'adm-set-opt--active' : ''}`}
-                          onClick={() => { emitVoid('settings:update', { soundTheme: theme }); playChime(theme, state.settings.volume) }}>{theme}</button>
+                          onClick={() => { updateSettings({ soundTheme: theme }); playChime(theme, state.settings.volume) }}>{theme}</button>
                       ))}
                     </div>
                   </div>
                   <div className="sg-field">
                     <label className="sg-label">Volume</label>
                     <input type="range" min="0" max="1" step="0.1" className="adm-range"
-                      value={state.settings.volume} onChange={e => emitVoid('settings:update', { volume: parseFloat(e.target.value) })} />
+                      value={state.settings.volume} onChange={e => updateSettings({ volume: parseFloat(e.target.value) })} />
                   </div>
                 </div>
                 <div className="sg-field">
@@ -1102,7 +1126,7 @@ export default function Admin() {
                       <button key={lang.code} className={`adm-set-opt ${state.settings.languages.includes(lang.code) ? 'adm-set-opt--active' : ''}`}
                         onClick={() => {
                           const langs = state.settings.languages.includes(lang.code) ? state.settings.languages.filter(l => l !== lang.code) : [...state.settings.languages, lang.code]
-                          if (langs.length > 0) emitVoid('settings:update', { languages: langs })
+                          if (langs.length > 0) updateSettings({ languages: langs })
                         }}>{lang.native}</button>
                     ))}
                   </div>
@@ -1130,8 +1154,10 @@ export default function Admin() {
                 </div>
               </div>
             </div>
+            )}
 
             {/* GROUP: Display */}
+            {showSection('display') && (
             <div className="sg sg--wide">
               <div className="sg-head">
                 <svg className="sg-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="2" width="16" height="11" rx="2"/><path d="M6 16h6M9 13v3"/></svg>
@@ -1167,7 +1193,7 @@ export default function Admin() {
                       { id: 'restaurant', name: 'Restaurant', desc: 'Order ready' },
                     ].map(l => (
                       <button key={l.id} className={`adm-layout-opt ${state.settings.displayLayout === l.id ? 'adm-layout-opt--active' : ''}`}
-                        onClick={() => emitVoid('settings:update', { displayLayout: l.id })}>
+                        onClick={() => updateSettings({ displayLayout: l.id })}>
                         <span className="adm-layout-name">{l.name}</span>
                         <span className="adm-layout-desc">{l.desc}</span>
                       </button>
@@ -1178,20 +1204,22 @@ export default function Admin() {
                   <div className="sg-field">
                     <label className="sg-label">Floor Map</label>
                     <button className={`adm-set-toggle ${state.settings.floorMapEnabled ? 'adm-set-toggle--on' : ''}`}
-                      onClick={() => emitVoid('settings:update', { floorMapEnabled: !state.settings.floorMapEnabled })}>
+                      onClick={() => updateSettings({ floorMapEnabled: !state.settings.floorMapEnabled })}>
                       {state.settings.floorMapEnabled ? 'Shown' : 'Hidden'}</button>
                   </div>
                   <div className="sg-field">
                     <label className="sg-label">Smart Routing</label>
                     <button className={`adm-set-toggle ${state.settings.smartRouting ? 'adm-set-toggle--on' : ''}`}
-                      onClick={() => emitVoid('settings:update', { smartRouting: !state.settings.smartRouting })}>
+                      onClick={() => updateSettings({ smartRouting: !state.settings.smartRouting })}>
                       {state.settings.smartRouting ? 'Enabled' : 'Disabled'}</button>
                   </div>
                 </div>
               </div>
             </div>
+            )}
 
             {/* GROUP: Automation */}
+            {showSection('automation') && (
             <div className="sg">
               <div className="sg-head">
                 <svg className="sg-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="9" cy="9" r="3"/><path d="M9 1v2M9 15v2M1 9h2M15 9h2M3.3 3.3l1.4 1.4M13.3 13.3l1.4 1.4M3.3 14.7l1.4-1.4M13.3 4.7l1.4-1.4"/></svg>
@@ -1205,7 +1233,7 @@ export default function Admin() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <input className="adm-input" type="number" min="0" style={{ width: 80 }}
                         value={state.settings.idleTimeout || 0}
-                        onChange={e => emitVoid('settings:update', { idleTimeout: parseInt(e.target.value) || 0 })} />
+                        onChange={e => updateSettings({ idleTimeout: parseInt(e.target.value) || 0 })} />
                       <span style={{ fontSize: 12, color: 'var(--gray-2)' }}>min</span>
                     </div>
                   </div>
@@ -1260,8 +1288,10 @@ export default function Admin() {
                 })()}
               </div>
             </div>
+            )}
 
             {/* GROUP: Media */}
+            {showSection('signage') && (
             <div className="sg">
               <div className="sg-head">
                 <svg className="sg-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="3" width="14" height="12" rx="2"/><path d="M7 7l4 2.5L7 12V7z"/></svg>
@@ -1274,13 +1304,13 @@ export default function Admin() {
                   <div className="adm-announce-form">
                     <input className="adm-input" type="text" placeholder="https://example.com/slide.jpg"
                       value={slideUrl} onChange={e => setSlideUrl(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter' && slideUrl.trim()) { emitVoid('settings:update', { mediaSlides: [...(state.settings.mediaSlides || []), slideUrl.trim()] }); setSlideUrl('') } }} />
-                    <button className="adm-join-btn" onClick={() => { if (slideUrl.trim()) { emitVoid('settings:update', { mediaSlides: [...(state.settings.mediaSlides || []), slideUrl.trim()] }); setSlideUrl('') } }}>Add</button>
+                      onKeyDown={e => { if (e.key === 'Enter' && slideUrl.trim()) { updateSettings({ mediaSlides: [...(state.settings.mediaSlides || []), slideUrl.trim()] }); setSlideUrl('') } }} />
+                    <button className="adm-join-btn" onClick={() => { if (slideUrl.trim()) { updateSettings({ mediaSlides: [...(state.settings.mediaSlides || []), slideUrl.trim()] }); setSlideUrl('') } }}>Add</button>
                   </div>
                   {(state.settings.mediaSlides || []).map((s, i) => (
                     <div key={i} className="adm-announce-item" style={{ marginTop: 4 }}>
                       <span style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{s}</span>
-                      <button className="adm-announce-rm" onClick={() => emitVoid('settings:update', { mediaSlides: state.settings.mediaSlides.filter((_, j) => j !== i) })}>×</button>
+                      <button className="adm-announce-rm" onClick={() => updateSettings({ mediaSlides: state.settings.mediaSlides.filter((_, j) => j !== i) })}>×</button>
                     </div>
                   ))}
                 </div>
@@ -1290,15 +1320,17 @@ export default function Admin() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <input className="adm-input" type="number" min="5" style={{ width: 80 }}
                         value={state.settings.signageInterval || 10}
-                        onChange={e => emitVoid('settings:update', { signageInterval: parseInt(e.target.value) || 10 })} />
+                        onChange={e => updateSettings({ signageInterval: parseInt(e.target.value) || 10 })} />
                       <span style={{ fontSize: 12, color: 'var(--gray-2)' }}>seconds</span>
                     </div>
                   </div>
                 )}
               </div>
             </div>
+            )}
 
             {/* GROUP: Advanced */}
+            {showSection('advanced') && (
             <div className="sg">
               <div className="sg-head">
                 <svg className="sg-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2H6l-4 7 4 7h6l4-7-4-7z"/></svg>
@@ -1310,10 +1342,11 @@ export default function Admin() {
                   <p className="sg-hint">Inject custom styles across all pages</p>
                   <textarea className="adm-textarea" rows={3} placeholder="/* .dsp-counter { border-radius: 0; } */"
                     value={state.settings.customCSS || ''}
-                    onChange={e => emitVoid('settings:update', { customCSS: e.target.value })} />
+                    onChange={e => updateSettings({ customCSS: e.target.value })} />
                 </div>
               </div>
             </div>
+            )}
 
           </div>
         )}
@@ -1405,6 +1438,13 @@ export default function Admin() {
             initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }}>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8.5l3 3 7-7"/></svg>
             Logged in as Admin
+          </motion.div>
+        )}
+        {savedToast && (
+          <motion.div className="adm-toast adm-toast--saved"
+            initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8.5l3 3 7-7"/></svg>
+            Saved
           </motion.div>
         )}
       </AnimatePresence>

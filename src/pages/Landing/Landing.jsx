@@ -11,13 +11,43 @@ const PUBLIC_ITEMS = [
   { to: '/track', label: 'Track Position', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg> },
 ]
 
-const ADMIN_ITEMS = [
-  { to: '/admin', label: 'Operate Counter', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 4h12M2 8h12M2 12h8"/></svg> },
-  { to: '/admin?tab=analytics', label: 'Analytics', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 13V3M2 13h12M5 10V7M8 10V5M11 10V8"/></svg> },
-  { to: '/admin?tab=announce', label: 'Announcements', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 6v4l8 3V3l-8 3zM3 6H2v4h1"/></svg> },
-  { to: '/admin?tab=categories', label: 'Categories', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg> },
-  { to: '/admin?tab=audit', label: 'Audit Log', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="2" width="10" height="12" rx="1"/><path d="M6 6h4M6 9h4M6 12h2"/></svg> },
-  { to: '/admin?tab=settings', label: 'Settings', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6L13 13M3 13l1.4-1.4M11.6 4.4L13 3"/></svg> },
+const ADMIN_GROUPS = [
+  {
+    title: 'Operations',
+    items: [
+      { to: '/admin', label: 'Operate Counter', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 4h12M2 8h12M2 12h8"/></svg> },
+      { to: '/admin?tab=analytics', label: 'Analytics', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 13V3M2 13h12M5 10V7M8 10V5M11 10V8"/></svg> },
+      { to: '/admin?tab=announce', label: 'Announcements', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 6v4l8 3V3l-8 3zM3 6H2v4h1"/></svg> },
+    ],
+  },
+  {
+    title: 'Configuration',
+    items: [
+      { to: '/admin?tab=categories&section=services', label: 'Service Categories', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg> },
+      { to: '/admin?tab=categories&section=counters', label: 'Counters', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 4h12M2 8h12M2 12h12"/></svg> },
+      { to: '/admin?tab=categories&section=branches', label: 'Branches', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 14V6l5-4 5 4v8M6 10h4M6 14v-3h4v3"/></svg> },
+      { to: '/admin?tab=categories&section=webhooks', label: 'Webhooks', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="4" cy="12" r="2"/><circle cx="12" cy="4" r="2"/><path d="M5.5 11L11 5.5"/></svg> },
+    ],
+  },
+  {
+    title: 'System',
+    items: [
+      { to: '/admin?tab=audit&section=log', label: 'Activity Log', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="2" width="10" height="12" rx="1"/><path d="M6 6h4M6 9h4M6 12h2"/></svg> },
+      { to: '/admin?tab=audit&section=shifts', label: 'Shifts', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg> },
+      { to: '/admin?tab=audit&section=access', label: 'Access Control', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="7" width="10" height="7" rx="1"/><path d="M5 7V4a3 3 0 016 0v3"/></svg> },
+    ],
+  },
+  {
+    title: 'Settings',
+    items: [
+      { to: '/admin?tab=settings&section=appearance', label: 'Appearance', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 000 12"/></svg> },
+      { to: '/admin?tab=settings&section=sound', label: 'Sound & Voice', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 6v4h2l3 3V3L5 6H3z"/><path d="M11 5.5a3 3 0 010 5"/></svg> },
+      { to: '/admin?tab=settings&section=display', label: 'Display', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="2" width="14" height="9" rx="1"/><path d="M5 14h6M8 11v3"/></svg> },
+      { to: '/admin?tab=settings&section=automation', label: 'Automation', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2"/></svg> },
+      { to: '/admin?tab=settings&section=signage', label: 'Digital Signage', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="3" width="12" height="10" rx="1"/><path d="M6 6l4 2.5L6 11V6z"/></svg> },
+      { to: '/admin?tab=settings&section=advanced', label: 'Advanced', icon: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M11 2H5l-3 6 3 6h6l3-6-3-6z"/></svg> },
+    ],
+  },
 ]
 
 export default function Landing() {
@@ -52,12 +82,16 @@ export default function Landing() {
             </NavLink>
           ))}
 
-          <div className="land-sidenav-section">Admin</div>
-          {ADMIN_ITEMS.map(item => (
-            <Link key={item.to} to={item.to} className="land-sidenav-item">
-              <span className="land-sidenav-icon">{item.icon}</span>
-              <span>{item.label}</span>
-            </Link>
+          {ADMIN_GROUPS.map(group => (
+            <div key={group.title}>
+              <div className="land-sidenav-section">{group.title}</div>
+              {group.items.map(item => (
+                <Link key={item.to} to={item.to} className="land-sidenav-item">
+                  <span className="land-sidenav-icon">{item.icon}</span>
+                  <span>{item.label}</span>
+                </Link>
+              ))}
+            </div>
           ))}
         </div>
 
