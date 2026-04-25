@@ -1,9 +1,9 @@
 // ============================================================================
 // CLINIC SETUP — Edit this file to configure your counters and rooms
 // ============================================================================
-// This file is loaded ONCE when the server starts with no existing data.json.
-// To re-apply changes after editing this file, delete server/data.json and
-// restart the server. Existing data will be preserved otherwise.
+// This file is loaded ONCE when the server starts with no existing data in
+// Supabase. To re-apply changes, delete the categories/counters rows in
+// Supabase and restart the server. Existing data will be preserved otherwise.
 // ============================================================================
 
 export const CLINIC_COUNTERS = [
@@ -19,58 +19,59 @@ export const CLINIC_COUNTERS = [
   { id: 5, name: 'Optometrist B1', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageId: 'optometrist', lastActiveAt: 0 },
   { id: 6, name: 'Optometrist B2', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageId: 'optometrist', lastActiveAt: 0 },
 
-  // ---- Doctor Rooms (set operatorName here once you give me the doctor names) ----
+  // ---- Doctor Rooms ----
   { id: 7, name: 'Doctor D1', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageId: 'doctor', lastActiveAt: 0 },
   { id: 8, name: 'Doctor D2', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageId: 'doctor', lastActiveAt: 0 },
   { id: 9, name: 'Doctor D3', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageId: 'doctor', lastActiveAt: 0 },
   { id: 10, name: 'Doctor D4', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageId: 'doctor', lastActiveAt: 0 },
 ]
 
+// Common stages used across all visit types — operator picks the path at each step
+const ALL_STAGES = [
+  { id: 'reception', name: 'Reception' },
+  { id: 'opd', name: 'OPD' },
+  { id: 'eye-drops', name: 'Eye Drops' },
+  { id: 'optometrist', name: 'Optometrist' },
+  { id: 'doctor', name: 'Doctor' },
+  { id: 'pre-op', name: 'Pre-Op' },
+  { id: 'surgery', name: 'Surgery' },
+  { id: 'pharmacy', name: 'Pharmacy' },
+]
+
 export const CLINIC_CATEGORIES = [
-  // General Consultation — Reception → OPD → Doctor
+  // New visit — full intake flow
   {
-    id: 'consultation',
-    name: 'Consultation',
-    nameAr: 'استشارة',
-    nameUr: 'مشاورت',
-    nameFr: 'Consultation',
+    id: 'new-visit',
+    name: 'New Visit',
+    nameAr: 'زيارة جديدة',
+    nameUr: 'نیا دورہ',
+    nameFr: 'Nouvelle visite',
     color: '#4f8ff7',
-    prefix: 'C',
-    stages: [
-      { id: 'reception', name: 'Reception' },
-      { id: 'opd', name: 'OPD' },
-      { id: 'doctor', name: 'Doctor' },
-    ],
+    prefix: 'N',
+    stages: ALL_STAGES,
   },
 
-  // Eye Exam — Reception → OPD → Optometrist
+  // Follow-up visit — returning patients, simpler flow
   {
-    id: 'eye-exam',
-    name: 'Eye Exam',
-    nameAr: 'فحص عيون',
-    nameUr: 'آنکھوں کا معائنہ',
-    nameFr: 'Examen oculaire',
+    id: 'follow-up',
+    name: 'Follow-up Visit',
+    nameAr: 'زيارة متابعة',
+    nameUr: 'فالو اپ ملاقات',
+    nameFr: 'Suivi',
     color: '#34d399',
-    prefix: 'E',
-    stages: [
-      { id: 'reception', name: 'Reception' },
-      { id: 'opd', name: 'OPD' },
-      { id: 'optometrist', name: 'Optometrist' },
-    ],
+    prefix: 'F',
+    stages: ALL_STAGES,
   },
 
-  // Walk-in / Direct (skips OPD, goes straight to doctor)
+  // Surgery visit — patients scheduled for surgery
   {
-    id: 'walk-in',
-    name: 'Walk-in',
-    nameAr: 'مراجعة عاجلة',
-    nameUr: 'فوری ملاقات',
-    nameFr: 'Sans rendez-vous',
-    color: '#fbbf24',
-    prefix: 'W',
-    stages: [
-      { id: 'reception', name: 'Reception' },
-      { id: 'doctor', name: 'Doctor' },
-    ],
+    id: 'surgery',
+    name: 'Surgery Visit',
+    nameAr: 'زيارة جراحة',
+    nameUr: 'سرجری دورہ',
+    nameFr: 'Visite chirurgie',
+    color: '#ec4899',
+    prefix: 'S',
+    stages: ALL_STAGES,
   },
 ]
