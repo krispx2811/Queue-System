@@ -1,10 +1,22 @@
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { createClient } from '@supabase/supabase-js'
+import 'dotenv/config'
 import { CLINIC_COUNTERS, CLINIC_CATEGORIES } from './clinic-setup.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_FILE = join(__dirname, 'data.json')
+
+// ---- Supabase client (server-side, full access) ----
+const SUPABASE_URL = process.env.SUPABASE_URL
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY
+const supabase = (SUPABASE_URL && SUPABASE_KEY)
+  ? createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } })
+  : null
+
+if (supabase) console.log('✓ Supabase client initialized')
+else console.log('⚠ Supabase not configured — falling back to JSON file storage')
 
 const DEFAULT_CATEGORIES = [
   { id: 'general', name: 'General', nameAr: 'عام', nameUr: 'عمومی', nameFr: 'Général', color: '#4f8ff7', prefix: 'G', stages: [] },
@@ -117,23 +129,197 @@ function makeDefault() {
   }
 }
 
-export function loadStore() {
+// ---- Mappers between camelCase (app) and snake_case (DB) ----
+const dbCounter = c => ({
+  id: c.id, name: c.name, operator_name: c.operatorName || '',
+  current_ticket: c.currentTicket, status: c.status, category_ids: c.categoryIds || [],
+  stage_id: c.stageId || null, last_active_at: c.lastActiveAt || 0,
+})
+const appCounter = r => ({
+  id: r.id, name: r.name, operatorName: r.operator_name,
+  currentTicket: r.current_ticket, status: r.status, categoryIds: r.category_ids || [],
+  stageId: r.stage_id, lastActiveAt: r.last_active_at,
+})
+
+const dbCategory = c => ({
+  id: c.id, name: c.name, name_ar: c.nameAr || '', name_ur: c.nameUr || '',
+  name_fr: c.nameFr || '', color: c.color, prefix: c.prefix || '', stages: c.stages || [],
+})
+const appCategory = r => ({
+  id: r.id, name: r.name, nameAr: r.name_ar, nameUr: r.name_ur,
+  nameFr: r.name_fr, color: r.color, prefix: r.prefix, stages: r.stages || [],
+})
+
+const dbTicket = t => ({
+  number: t.number, display_number: t.displayNumber, category_id: t.categoryId,
+  current_stage: t.currentStage || 0, stage_history: t.stageHistory || [],
+  status: t.status, counter_id: t.counterId, created_at: t.createdAt,
+  called_at: t.calledAt, completed_at: t.completedAt, notes: t.notes || '',
+  transfer_history: t.transferHistory || [], held_at: t.heldAt, held_by_counter_id: t.heldByCounterId,
+})
+const appTicket = r => ({
+  number: r.number, displayNumber: r.display_number, categoryId: r.category_id,
+  currentStage: r.current_stage, stageHistory: r.stage_history || [],
+  status: r.status, counterId: r.counter_id, createdAt: r.created_at,
+  calledAt: r.called_at, completedAt: r.completed_at, notes: r.notes,
+  transferHistory: r.transfer_history || [], heldAt: r.held_at, heldByCounterId: r.held_by_counter_id,
+})
+
+const dbAudit = a => ({ action: a.action, actor: a.actor || '', details: a.details || '', ts: a.timestamp })
+const appAudit = r => ({ action: r.action, actor: r.actor, details: r.details, timestamp: r.ts })
+
+const dbShift = s => ({ operator_name: s.operatorName, counter_id: s.counterId, clock_in: s.clockIn, clock_out: s.clockOut })
+const appShift = r => ({ operatorName: r.operator_name, counterId: r.counter_id, clockIn: r.clock_in, clockOut: r.clock_out })
+
+const dbBranch = b => ({ id: b.id, name: b.name, name_ar: b.nameAr || '' })
+const appBranch = r => ({ id: r.id, name: r.name, nameAr: r.name_ar })
+
+const dbWebhook = w => ({ id: w.id, url: w.url, events: w.events || ['*'] })
+const appWebhook = r => ({ id: r.id, url: r.url, events: r.events || ['*'] })
+
+export async function loadStore() {
+  if (supabase) {
+    try {
+      const [appS, cats, ctrs, tks, audit, shifts, ann, brs, whs] = await Promise.all([
+        supabase.from('app_state').select('*').eq('id', 1).single(),
+        supabase.from('categories').select('*').order('position'),
+        supabase.from('counters').select('*').order('id'),
+        supabase.from('tickets').select('*').order('number'),
+        supabase.from('audit_log').select('*').order('ts', { ascending: false }).limit(500),
+        supabase.from('shifts').select('*').order('id', { ascending: false }).limit(200),
+        supabase.from('announcements').select('*').order('position'),
+        supabase.from('branches').select('*'),
+        supabase.from('webhooks').select('*'),
+      ])
+
+      const def = makeDefault()
+      const state = {
+        ...def,
+        license: appS.data?.license || def.license,
+        nextTicketNumber: appS.data?.next_ticket_number || 1,
+        activeBranch: appS.data?.active_branch || 'main',
+        roles: appS.data?.roles || def.roles,
+        settings: { ...def.settings, ...(appS.data?.settings || {}) },
+        categories: cats.data?.length ? cats.data.map(appCategory) : def.categories,
+        counters: ctrs.data?.length ? ctrs.data.map(appCounter) : def.counters,
+        tickets: tks.data?.map(appTicket) || [],
+        auditLog: audit.data?.map(appAudit) || [],
+        shifts: shifts.data?.map(appShift) || [],
+        announcements: ann.data?.map(a => a.text) || [],
+        branches: brs.data?.length ? brs.data.map(appBranch) : def.branches,
+        webhooks: whs.data?.map(appWebhook) || [],
+      }
+
+      // Seed defaults to DB on first run
+      if (!cats.data?.length) await supabase.from('categories').upsert(state.categories.map(dbCategory))
+      if (!ctrs.data?.length) await supabase.from('counters').upsert(state.counters.map(dbCounter))
+      if (!brs.data?.length) await supabase.from('branches').upsert(state.branches.map(dbBranch))
+
+      console.log(`✓ Loaded from Supabase: ${state.counters.length} counters, ${state.categories.length} categories, ${state.tickets.length} tickets, ${state.auditLog.length} audit entries`)
+      return state
+    } catch (e) {
+      console.error('Supabase load failed:', e.message)
+    }
+  }
+
+  // Fallback to JSON file
   try {
     if (existsSync(DATA_FILE)) {
       const raw = readFileSync(DATA_FILE, 'utf-8')
-      const data = JSON.parse(raw)
-      return { ...makeDefault(), ...data }
+      return { ...makeDefault(), ...JSON.parse(raw) }
     }
   } catch {}
   return makeDefault()
 }
 
-export function saveStore(state) {
-  try {
-    writeFileSync(DATA_FILE, JSON.stringify(state, null, 2))
-  } catch (e) {
-    console.error('Failed to save store:', e.message)
+let lastSave = 0
+let savePending = false
+let lastAuditCount = 0
+let lastShiftCount = 0
+
+export async function saveStore(state) {
+  const now = Date.now()
+  if (now - lastSave < 2000) {
+    if (!savePending) {
+      savePending = true
+      setTimeout(() => { savePending = false; saveStore(state) }, 2000 - (now - lastSave))
+    }
+    return
   }
+  lastSave = now
+
+  if (supabase) {
+    try {
+      // 1. App state (settings, license, nextTicketNumber, etc.)
+      const appStatePromise = supabase.from('app_state').upsert({
+        id: 1,
+        next_ticket_number: state.nextTicketNumber,
+        active_branch: state.activeBranch,
+        license: state.license,
+        roles: state.roles,
+        settings: state.settings,
+        updated_at: new Date().toISOString(),
+      })
+
+      // 2. Counters (full sync — small list)
+      const countersPromise = state.counters.length
+        ? supabase.from('counters').upsert(state.counters.map(dbCounter))
+        : Promise.resolve()
+
+      // 3. Categories (full sync — small list)
+      const categoriesPromise = state.categories.length
+        ? supabase.from('categories').upsert(state.categories.map((c, i) => ({ ...dbCategory(c), position: i })))
+        : Promise.resolve()
+
+      // 4. Tickets (upsert all — could optimize to only dirty ones later)
+      const ticketsPromise = state.tickets.length
+        ? supabase.from('tickets').upsert(state.tickets.map(dbTicket))
+        : Promise.resolve()
+
+      // 5. Audit log — append-only, only new entries
+      const auditDelta = state.auditLog.length - lastAuditCount
+      const auditPromise = auditDelta > 0
+        ? supabase.from('audit_log').insert(state.auditLog.slice(0, auditDelta).map(dbAudit))
+            .then(() => { lastAuditCount = state.auditLog.length })
+        : Promise.resolve()
+
+      // 6. Shifts — sync recent ones
+      const shiftsPromise = state.shifts.length
+        ? supabase.from('shifts').upsert(state.shifts.map(dbShift), { onConflict: 'operator_name,clock_in', ignoreDuplicates: false }).catch(() => {})
+        : Promise.resolve()
+
+      // 7. Announcements — replace all (small list)
+      const annPromise = (async () => {
+        await supabase.from('announcements').delete().neq('id', 0)
+        if (state.announcements.length) {
+          await supabase.from('announcements').insert(state.announcements.map((text, i) => ({ text, position: i })))
+        }
+      })()
+
+      // 8. Branches
+      const branchesPromise = state.branches.length
+        ? supabase.from('branches').upsert(state.branches.map(dbBranch))
+        : Promise.resolve()
+
+      // 9. Webhooks
+      const webhooksPromise = (async () => {
+        await supabase.from('webhooks').delete().neq('id', '')
+        if (state.webhooks?.length) {
+          await supabase.from('webhooks').insert(state.webhooks.map(dbWebhook))
+        }
+      })()
+
+      await Promise.all([
+        appStatePromise, countersPromise, categoriesPromise, ticketsPromise,
+        auditPromise, shiftsPromise, annPromise, branchesPromise, webhooksPromise,
+      ])
+    } catch (e) {
+      console.error('Supabase save failed:', e.message)
+    }
+  }
+
+  // Backup to JSON file
+  try { writeFileSync(DATA_FILE, JSON.stringify(state, null, 2)) } catch {}
 }
 
 // ---- Ticket operations ----

@@ -17,7 +17,7 @@ app.use(express.json())
 const http = createServer(app)
 const io = new Server(http, { cors: { origin: '*' } })
 
-const state = loadStore()
+const state = await loadStore()
 
 setInterval(() => saveStore(state), 10000)
 
