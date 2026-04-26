@@ -31,12 +31,19 @@ export default function VoiceAnnouncer() {
         for (let i = 0; i < languages.length; i++) {
           const lang = languages[i]
           const counterTranslated = translateRoom(item.counterName || '', lang)
+          const stageTranslated = translateRoom(item.stageName || '', lang)
           // Pick the localized category name; fall back to English then '' so
           // a missing translation doesn't break the sentence.
           const categoryLocalized = item.categoryNames?.[lang] || item.categoryNames?.en || ''
-          // Use the *Cat variant only when we actually have a category — an
-          // empty {category} would leave a leading comma in Arabic ("،  رقم …").
-          const baseKey = item.action === 'recall' ? 'voiceRecall' : 'voiceNowServing'
+          // Pick template by action: 'advance' = patient moving to a new stage,
+          // 'recall' = repeat call, default = first call. Use the *Cat variant
+          // only when we actually have a category — an empty {category} would
+          // leave a leading comma in Arabic ("،  رقم …").
+          const baseKey = item.action === 'recall'
+            ? 'voiceRecall'
+            : item.action === 'advance'
+              ? 'voiceAdvance'
+              : 'voiceNowServing'
           const textKey = categoryLocalized ? `${baseKey}Cat` : baseKey
           // Convert digits to Arabic-Indic for Arabic so the voice doesn't read them in English
           let ticketNum = String(item.ticketNumber)
@@ -44,7 +51,12 @@ export default function VoiceAnnouncer() {
             const ar = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩']
             ticketNum = ticketNum.replace(/\d/g, d => ar[d])
           }
-          const text = t(textKey, lang, { n: ticketNum, counter: counterTranslated, category: categoryLocalized })
+          const text = t(textKey, lang, {
+            n: ticketNum,
+            counter: counterTranslated,
+            stage: stageTranslated,
+            category: categoryLocalized,
+          })
 
           window.speechSynthesis?.cancel()
           await speakSequential(text, lang, settingsRef.current)
@@ -94,6 +106,7 @@ export default function VoiceAnnouncer() {
       action: announced.action,
       counterId: announced.counterId,
       counterName: announced.counterName,
+      stageName: announced.stageName,
       categoryNames,
     })
 

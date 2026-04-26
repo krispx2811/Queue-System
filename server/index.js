@@ -304,6 +304,18 @@ io.on('connection', (socket) => {
       const action = result.finished ? 'complete' : `advance → ${result.nextStage?.name}`
       addAudit(state, `ticket:${action}`, cName, `#${result.ticket.number}`)
       fireWebhooks(result.finished ? 'ticket:completed' : 'ticket:advanced', result)
+      // Voice announcement for the patient that they should proceed to the next
+      // stage. Only fires when the ticket is genuinely moving to a new stage —
+      // 'finished' means this was the last stage, no further direction needed.
+      if (!result.finished && result.nextStage) {
+        io.emit('ticket:announced', {
+          ticketNumber: result.ticket.number,
+          action: 'advance',
+          stageName: result.nextStage.name,
+          categoryId: result.ticket.categoryId,
+          at: Date.now(),
+        })
+      }
     }
     broadcast()
     cb?.(result)

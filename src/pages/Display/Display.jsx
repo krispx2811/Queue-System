@@ -136,15 +136,15 @@ export default function Display() {
         <img src={state.settings.logoUrl} className="dsp-logo" alt="" />
       )}
 
-      {/* Announcement banner */}
+      {/* Announcement banner — scrolls right-off-screen → left-off-screen.
+          Previously the JSX duplicated each item to fake a seamless loop, but
+          for a short single announcement that looked like double text with
+          two bullets. CSS now scrolls a single pass spanning the full screen. */}
       {state.announcements.length > 0 && (
         <div className="dsp-banner">
           <div className="dsp-banner-track">
             {state.announcements.map((a, i) => (
               <span key={i} className="dsp-banner-item">{a}</span>
-            ))}
-            {state.announcements.map((a, i) => (
-              <span key={`dup-${i}`} className="dsp-banner-item">{a}</span>
             ))}
           </div>
         </div>

@@ -28,8 +28,8 @@
   display: flex;
   gap: 60px;
   white-space: nowrap;
+  width: max-content;
   animation: bannerScroll 30s linear infinite;
-  padding-left: 100%;
 }
 
 .dsp-banner-item {
@@ -45,9 +45,11 @@
   opacity: 0.5;
 }
 
+/* Start fully off the right edge, end fully off the left edge so a single
+   pass traverses the entire viewport width regardless of content length. */
 @keyframes bannerScroll {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
+  from { transform: translateX(100vw); }
+  to   { transform: translateX(-100%); }
 }
 
 /* Info block (weather + clock) — inline in bottom bar */

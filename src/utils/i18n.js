@@ -101,6 +101,8 @@ const translations = {
     voiceNowServingCat: 'Now serving {category} number {n} at {counter}',
     voiceRecall: 'Recalling number {n} at {counter}',
     voiceRecallCat: 'Recalling {category} number {n} at {counter}',
+    voiceAdvance: 'Number {n}, please proceed to {stage}',
+    voiceAdvanceCat: '{category} number {n}, please proceed to {stage}',
   },
   ar: {
     nowServing: 'يتم خدمة الرقم',
@@ -207,6 +209,8 @@ const translations = {
     // confuses the voice. "تذكير" is unambiguously Arabic and pronounces cleanly.
     voiceRecall: 'تذكير، الرقم {n} تفضل إلى {counter}',
     voiceRecallCat: 'تذكير، {category}، رقم {n}، تفضل إلى {counter}',
+    voiceAdvance: 'الرقم {n}، تفضل إلى {stage}',
+    voiceAdvanceCat: '{category}، رقم {n}، تفضل إلى {stage}',
   },
   ur: {
     nowServing: 'خدمت ہو رہی ہے',
@@ -266,6 +270,8 @@ const translations = {
     voiceNowServingCat: '{category}، نمبر {n} {counter} پر آئیں',
     voiceRecall: 'نمبر {n} دوبارہ {counter} پر',
     voiceRecallCat: '{category}، نمبر {n} دوبارہ {counter} پر',
+    voiceAdvance: 'نمبر {n}، {stage} پر آئیں',
+    voiceAdvanceCat: '{category}، نمبر {n}، {stage} پر آئیں',
   },
   fr: {
     nowServing: 'En service',
@@ -325,6 +331,8 @@ const translations = {
     voiceNowServingCat: '{category}, numéro {n} au {counter} s\'il vous plaît',
     voiceRecall: 'Rappel du numéro {n} au {counter}',
     voiceRecallCat: 'Rappel {category}, numéro {n} au {counter}',
+    voiceAdvance: 'Numéro {n}, veuillez vous rendre à {stage}',
+    voiceAdvanceCat: '{category}, numéro {n}, veuillez vous rendre à {stage}',
   },
 }
 
