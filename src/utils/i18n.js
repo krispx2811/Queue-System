@@ -405,18 +405,20 @@ export function translateRoom(name, lang) {
   }
 
   // For Arabic, transliterate English letter suffixes (D1, B2, A) into the
-  // closest Arabic letter so the multilingual TTS voice doesn't drop them or
-  // switch back to English. "Optometrist B1" → "اختصاصي النظر ب ١".
+  // phonetic Arabic spelling of the English letter name (دي, بي, أيه) so the
+  // multilingual TTS pronounces it as a distinct token instead of slurring it
+  // into the previous word — "الطبيب د ١" was reading as "tabeebed" because
+  // the bare letter د glued onto طبيب. Phonetic spellings stay separate.
   if (lang === 'ar') {
     const AR_LETTER = {
-      A: 'أ', B: 'ب', C: 'ك', D: 'د', E: 'إي', F: 'ف', G: 'ج', H: 'هـ',
-      I: 'آي', J: 'ج', K: 'ك', L: 'ل', M: 'م', N: 'ن', O: 'أو', P: 'پ',
-      Q: 'ق', R: 'ر', S: 'س', T: 'ت', U: 'يو', V: 'ڤ', W: 'و', X: 'إكس',
-      Y: 'ي', Z: 'ز',
+      A: 'أيه', B: 'بي', C: 'سي', D: 'دي', E: 'إي', F: 'إف', G: 'جي',
+      H: 'إيتش', I: 'آي', J: 'جيه', K: 'كيه', L: 'إل', M: 'إم', N: 'إن',
+      O: 'أو', P: 'پي', Q: 'كيو', R: 'آر', S: 'إس', T: 'تي', U: 'يو',
+      V: 'في', W: 'دبليو', X: 'إكس', Y: 'واي', Z: 'زد',
     }
-    // "الطبيب D2" → "الطبيب د ٢", "اختصاصي النظر B1" → "اختصاصي النظر ب ١"
+    // "الطبيب D2" → "الطبيب دي ٢", "أخصائي البصريات B1" → "أخصائي البصريات بي ١"
     result = result.replace(/\s+([A-Z])(\d+)\b/g, (_, letter, num) => ` ${AR_LETTER[letter] || letter} ${num}`)
-    // "OPD A" / "الاستقبال A" → "العيادة الخارجية أ"
+    // "OPD A" / "الاستقبال A" → "العيادة الخارجية أيه"
     result = result.replace(/\s+([A-Z])\b/g, (_, letter) => ` ${AR_LETTER[letter] || letter}`)
     // Convert digits to Arabic-Indic numerals so the voice says them naturally
     const arDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩']
