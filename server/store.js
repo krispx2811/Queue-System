@@ -371,10 +371,12 @@ export function takeTicket(state, categoryId) {
   return ticket
 }
 
-// Called when an operator finishes with their current patient. Auto-advances
-// the patient to the next stage (or marks them served if last). Used by
-// callNext before picking the next ticket.
-function autoAdvanceCurrent(state, counter) {
+// Mark the operator's current patient as served before picking the next one.
+// We deliberately do NOT auto-advance the patient to the next workflow stage
+// — that would silently change the patient's path. The operator should use
+// Send To when they want a stage transition; clicking plain Call Next means
+// "I'm done with this patient, fetch the next one".
+function autoCompleteCurrent(state, counter) {
   if (!counter.currentTicket) return
   const prev = state.tickets.find(t => t.number === counter.currentTicket)
   if (!prev || prev.status !== 'serving') return
@@ -390,23 +392,16 @@ function autoAdvanceCurrent(state, counter) {
       completedAt: Date.now(),
     })
   }
-  if (currentIdx + 1 < stages.length) {
-    prev.currentStage = currentIdx + 1
-    prev.status = 'waiting'
-    prev.counterId = null
-    prev.calledAt = null
-  } else {
-    prev.status = 'served'
-    prev.completedAt = Date.now()
-  }
+  prev.status = 'served'
+  prev.completedAt = Date.now()
 }
 
 export function callNext(state, counterId, specificTicketNumber = null) {
   const counter = state.counters.find(c => c.id === counterId)
   if (!counter || counter.status === 'closed') return null
 
-  // Auto-advance current ticket to next stage (or complete if last stage)
-  autoAdvanceCurrent(state, counter)
+  // Mark current patient as served; do not change their workflow stage.
+  autoCompleteCurrent(state, counter)
 
   // If the operator picked a specific ticket from the waiting list (e.g. an
   // eye-drops patient OPD wants to call now), grab that one and bypass the
