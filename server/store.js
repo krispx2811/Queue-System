@@ -131,13 +131,16 @@ const appCategory = r => ({
   nameFr: r.name_fr, color: r.color, prefix: r.prefix, stages: r.stages || [],
 })
 
+// forcedCounterId is intentionally not written here — the column may not
+// exist in older Supabase deployments. transferToRoom still works in-memory;
+// the lock just doesn't survive a server restart, which is acceptable for
+// the rare emergency-transfer case.
 const dbTicket = t => ({
   number: t.number, display_number: t.displayNumber, category_id: t.categoryId,
   current_stage: t.currentStage || 0, stage_history: t.stageHistory || [],
   status: t.status, counter_id: t.counterId, created_at: t.createdAt,
   called_at: t.calledAt, completed_at: t.completedAt, notes: t.notes || '',
   transfer_history: t.transferHistory || [], held_at: t.heldAt, held_by_counter_id: t.heldByCounterId,
-  forced_counter_id: t.forcedCounterId || null,
 })
 const appTicket = r => ({
   number: r.number, displayNumber: r.display_number, categoryId: r.category_id,

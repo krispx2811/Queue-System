@@ -208,21 +208,27 @@ const themes = {
 
 export const SOUND_THEMES = Object.keys(themes)
 
-export function playChime(theme = 'doorbell', volume = 0.8) {
-  return new Promise(resolve => {
-    try {
-      const c = ctx()
-      // Browsers suspend AudioContext after the tab is backgrounded; resume so
-      // chimes don't silently fail when the display tab regains focus.
-      if (c.state === 'suspended') c.resume().catch(() => {})
-      // Apply volume via the master gain; theme functions don't accept volume.
-      masterGain.gain.setValueAtTime(Math.max(0, Math.min(1, volume)), c.currentTime)
-      const themeFunc = themes[theme] || themes.doorbell
-      const osc = themeFunc(c)
+export async function playChime(theme = 'doorbell', volume = 0.8) {
+  try {
+    const c = ctx()
+    // Browsers suspend AudioContext after the tab is backgrounded; await so
+    // oscillators don't schedule against a stalled clock and play silently.
+    if (c.state === 'suspended') {
+      try { await c.resume() } catch {}
+    }
+    // Apply volume via master gain. Guard against undefined / NaN — those
+    // would silence everything by writing NaN to the gain param.
+    const v = (typeof volume === 'number' && !isNaN(volume))
+      ? Math.max(0, Math.min(1, volume))
+      : 0.8
+    masterGain.gain.setValueAtTime(v, c.currentTime)
+    const themeFunc = themes[theme] || themes.doorbell
+    const osc = themeFunc(c)
+    return await new Promise(resolve => {
       if (osc) osc.onended = resolve
       else setTimeout(resolve, 2000)
-    } catch {
-      resolve()
-    }
-  })
+    })
+  } catch {
+    // swallow — never let an audio failure break the announcement queue
+  }
 }
