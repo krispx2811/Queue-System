@@ -18,25 +18,6 @@ const supabase = (SUPABASE_URL && SUPABASE_KEY)
 if (supabase) console.log('✓ Supabase client initialized')
 else console.log('⚠ Supabase not configured — falling back to JSON file storage')
 
-const DEFAULT_CATEGORIES = [
-  { id: 'general', name: 'General', nameAr: 'عام', nameUr: 'عمومی', nameFr: 'Général', color: '#4f8ff7', prefix: 'G', stages: [] },
-  { id: 'payments', name: 'Payments', nameAr: 'المدفوعات', nameUr: 'ادائیگی', nameFr: 'Paiements', color: '#34d399', prefix: 'P', stages: [] },
-  { id: 'inquiries', name: 'Inquiries', nameAr: 'الاستفسارات', nameUr: 'استفسارات', nameFr: 'Renseignements', color: '#fbbf24', prefix: 'Q', stages: [] },
-  { id: 'accounts', name: 'New Accounts', nameAr: 'حسابات جديدة', nameUr: 'نئے اکاؤنٹس', nameFr: 'Nouveaux comptes', color: '#a78bfa', prefix: 'A', stages: [] },
-  { id: 'medical', name: 'Medical Consultation', nameAr: 'استشارة طبية', nameUr: 'طبی مشاورت', nameFr: 'Consultation médicale', color: '#ec4899', prefix: 'M', stages: [
-    { id: 'triage', name: 'Triage' },
-    { id: 'doctor', name: 'Doctor' },
-    { id: 'lab', name: 'Lab Tests' },
-    { id: 'pharmacy', name: 'Pharmacy' },
-  ] },
-]
-
-const DEFAULT_COUNTERS = [
-  { id: 1, name: 'Counter 1', operatorName: '', currentTicket: null, status: 'open', categoryIds: [] },
-  { id: 2, name: 'Counter 2', operatorName: '', currentTicket: null, status: 'open', categoryIds: [] },
-  { id: 3, name: 'Counter 3', operatorName: '', currentTicket: null, status: 'open', categoryIds: [] },
-]
-
 // ---- License Key Validation ----
 const LICENSE_SECRET = 'QueueSys2026'
 
@@ -261,15 +242,24 @@ export async function saveStore(state, { force = false } = {}) {
         updated_at: new Date().toISOString(),
       })
 
-      // 2. Counters (full sync — small list)
-      const countersPromise = state.counters.length
-        ? supabase.from('counters').upsert(state.counters.map(dbCounter))
-        : Promise.resolve()
+      // 2. Counters (sync exactly — delete removed, upsert current)
+      const counterIds = state.counters.map(c => c.id)
+      const countersPromise = (async () => {
+        if (counterIds.length > 0) {
+          await supabase.from('counters').delete().not('id', 'in', `(${counterIds.join(',')})`)
+          await supabase.from('counters').upsert(state.counters.map(dbCounter))
+        }
+      })()
 
-      // 3. Categories (full sync — small list)
-      const categoriesPromise = state.categories.length
-        ? supabase.from('categories').upsert(state.categories.map((c, i) => ({ ...dbCategory(c), position: i })))
-        : Promise.resolve()
+      // 3. Categories (sync exactly — delete removed, upsert current)
+      const categoryIds = state.categories.map(c => c.id)
+      const categoriesPromise = (async () => {
+        if (categoryIds.length > 0) {
+          const idList = categoryIds.map(id => `"${id.replace(/"/g, '""')}"`).join(',')
+          await supabase.from('categories').delete().not('id', 'in', `(${idList})`)
+          await supabase.from('categories').upsert(state.categories.map((c, i) => ({ ...dbCategory(c), position: i })))
+        }
+      })()
 
       // 4. Tickets (upsert all — could optimize to only dirty ones later)
       const ticketsPromise = state.tickets.length
