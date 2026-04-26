@@ -230,7 +230,7 @@ io.on('connection', (socket) => {
         ticket.calledAt = Date.now()
         best.currentTicket = ticket.number
         best.lastActiveAt = Date.now()
-        io.emit('ticket:announced', { ticketNumber: ticket.number, counterId: best.id, action: 'next', counterName: best.name })
+        io.emit('ticket:announced', { ticketNumber: ticket.number, counterId: best.id, action: 'next', counterName: best.name, at: Date.now() })
         fireWebhooks('ticket:called', ticket)
       }
     }
@@ -244,7 +244,7 @@ io.on('connection', (socket) => {
     if (ticket) {
       const cName = state.counters.find(c => c.id === counterId)?.name || ''
       addAudit(state, 'ticket:call', cName, `#${ticket.number}`)
-      io.emit('ticket:announced', { ticketNumber: ticket.number, counterId, action: 'next', counterName: cName })
+      io.emit('ticket:announced', { ticketNumber: ticket.number, counterId, action: 'next', counterName: cName, at: Date.now() })
       fireWebhooks('ticket:called', { ticket, counter: cName })
     }
     cb?.(ticket)
@@ -255,7 +255,7 @@ io.on('connection', (socket) => {
     if (ticket) {
       const cName = state.counters.find(c => c.id === counterId)?.name || ''
       addAudit(state, 'ticket:recall', cName, `#${ticket.number}`)
-      io.emit('ticket:announced', { ticketNumber: ticket.number, counterId, action: 'recall', counterName: cName })
+      io.emit('ticket:announced', { ticketNumber: ticket.number, counterId, action: 'recall', counterName: cName, at: Date.now() })
     }
     cb?.(ticket)
   })
@@ -303,7 +303,7 @@ io.on('connection', (socket) => {
     if (ticket) {
       const cName = state.counters.find(c => c.id === counterId)?.name || ''
       addAudit(state, 'ticket:unhold', cName, `#${ticket.number}`)
-      io.emit('ticket:announced', { ticketNumber: ticket.number, counterId, action: 'next', counterName: cName })
+      io.emit('ticket:announced', { ticketNumber: ticket.number, counterId, action: 'next', counterName: cName, at: Date.now() })
     }
     cb?.(ticket)
   })

@@ -64,7 +64,7 @@ export default function VoiceAnnouncer() {
   useEffect(() => {
     if (!announced) return
 
-    const key = `${announced.ticketNumber}-${announced.action}-${announced.counterId}-${announced.calledAt || ''}`
+    const key = `${announced.ticketNumber}-${announced.action}-${announced.counterId}-${announced.at || announced.calledAt || ''}`
     if (seenKeysRef.current.has(key)) return
     seenKeysRef.current.add(key)
     // Trim memory of seen keys
