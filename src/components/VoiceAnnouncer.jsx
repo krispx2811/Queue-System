@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react'
 import { useSocket } from '../context/SocketContext'
 import { playChime } from '../utils/sounds'
-import { t, translateRoom } from '../utils/i18n'
+import { t, translateRoom, LANGUAGES } from '../utils/i18n'
 import { speakSequential, stopAll } from '../hooks/useVoice'
+
+const SUPPORTED_LANGS = new Set(LANGUAGES.map(l => l.code))
 
 export default function VoiceAnnouncer() {
   const { state, announced } = useSocket()
@@ -21,7 +23,11 @@ export default function VoiceAnnouncer() {
 
     while (queueRef.current.length > 0) {
       const item = queueRef.current.shift()
-      const { soundTheme = 'doorbell', languages = ['en', 'ar'], volume = 0.8 } = settingsRef.current
+      const { soundTheme = 'doorbell', languages: rawLangs = ['en', 'ar'], volume = 0.8 } = settingsRef.current
+      // Strip any languages no longer in the supported set (legacy settings
+      // could still hold 'ur' / 'fr').
+      const languages = rawLangs.filter(code => SUPPORTED_LANGS.has(code))
+      if (languages.length === 0) continue
 
       try {
         stopAll()

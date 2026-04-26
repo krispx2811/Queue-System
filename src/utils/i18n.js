@@ -436,9 +436,11 @@ export function isRTL(lang) {
   return lang === 'ar' || lang === 'ur'
 }
 
+// Voice + UI language options. Urdu and French translations still live in
+// `translations` above so any settings.languages with those codes won't crash,
+// but they're hidden from the Admin UI per the clinic's request — voice is
+// English + Arabic only.
 export const LANGUAGES = [
   { code: 'en', name: 'English', native: 'English' },
   { code: 'ar', name: 'Arabic', native: 'العربية' },
-  { code: 'ur', name: 'Urdu', native: 'اردو' },
-  { code: 'fr', name: 'French', native: 'Français' },
 ]
