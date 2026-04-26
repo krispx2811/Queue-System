@@ -371,68 +371,81 @@ export function takeTicket(state, categoryId) {
   return ticket
 }
 
-export function callNext(state, counterId) {
+// Called when an operator finishes with their current patient. Auto-advances
+// the patient to the next stage (or marks them served if last). Used by
+// callNext before picking the next ticket.
+function autoAdvanceCurrent(state, counter) {
+  if (!counter.currentTicket) return
+  const prev = state.tickets.find(t => t.number === counter.currentTicket)
+  if (!prev || prev.status !== 'serving') return
+  const cat = state.categories.find(c => c.id === prev.categoryId)
+  const stages = cat?.stages || []
+  const currentIdx = prev.currentStage || 0
+  if (stages[currentIdx]) {
+    prev.stageHistory = prev.stageHistory || []
+    prev.stageHistory.push({
+      stage: currentIdx,
+      stageName: stages[currentIdx].name,
+      counterId: counter.id,
+      completedAt: Date.now(),
+    })
+  }
+  if (currentIdx + 1 < stages.length) {
+    prev.currentStage = currentIdx + 1
+    prev.status = 'waiting'
+    prev.counterId = null
+    prev.calledAt = null
+  } else {
+    prev.status = 'served'
+    prev.completedAt = Date.now()
+  }
+}
+
+export function callNext(state, counterId, specificTicketNumber = null) {
   const counter = state.counters.find(c => c.id === counterId)
   if (!counter || counter.status === 'closed') return null
 
   // Auto-advance current ticket to next stage (or complete if last stage)
-  if (counter.currentTicket) {
-    const prev = state.tickets.find(t => t.number === counter.currentTicket)
-    if (prev && prev.status === 'serving') {
-      const cat = state.categories.find(c => c.id === prev.categoryId)
-      const stages = cat?.stages || []
-      const currentIdx = prev.currentStage || 0
+  autoAdvanceCurrent(state, counter)
 
-      // Record stage completion
-      if (stages[currentIdx]) {
-        prev.stageHistory = prev.stageHistory || []
-        prev.stageHistory.push({
-          stage: currentIdx,
-          stageName: stages[currentIdx].name,
-          counterId,
-          completedAt: Date.now(),
-        })
-      }
-
-      // Advance to next stage (waiting) if there is one, else mark served
-      if (currentIdx + 1 < stages.length) {
-        prev.currentStage = currentIdx + 1
-        prev.status = 'waiting'
-        prev.counterId = null
-        prev.calledAt = null
-      } else {
-        prev.status = 'served'
-        prev.completedAt = Date.now()
-      }
+  // If the operator picked a specific ticket from the waiting list (e.g. an
+  // eye-drops patient OPD wants to call now), grab that one and bypass the
+  // stage/category filter — the operator made an explicit choice.
+  let next
+  if (specificTicketNumber != null) {
+    next = state.tickets.find(t => t.number === specificTicketNumber && t.status === 'waiting')
+    if (!next) {
+      counter.currentTicket = null
+      return null
     }
+  } else {
+    // Find next waiting ticket — prioritize tickets forced to this counter,
+    // then filter by category/stage assignment.
+    const validCategories = counter.categoryIds.length > 0 ? counter.categoryIds : state.categories.map(c => c.id)
+    const waiting = state.tickets
+      .filter(t => {
+        if (t.status !== 'waiting') return false
+        // Forced-to-this-counter takes priority and bypasses category/stage filters
+        if (t.forcedCounterId) return t.forcedCounterId === counterId
+        if (!validCategories.includes(t.categoryId)) return false
+        // Stage filtering: if counter has stageIds, only serve tickets whose
+        // current stage is one of those.
+        if (counter.stageIds && counter.stageIds.length > 0) {
+          const cat = state.categories.find(c => c.id === t.categoryId)
+          const ticketStage = cat?.stages?.[t.currentStage || 0]
+          if (!ticketStage || !counter.stageIds.includes(ticketStage.id)) return false
+        }
+        return true
+      })
+      .sort((a, b) => {
+        // Forced transfers first, then by ticket number
+        if (a.forcedCounterId && !b.forcedCounterId) return -1
+        if (b.forcedCounterId && !a.forcedCounterId) return 1
+        return a.number - b.number
+      })
+
+    next = waiting[0]
   }
-
-  // Find next waiting ticket — prioritize tickets forced to this counter,
-  // then filter by category/stage assignment.
-  const validCategories = counter.categoryIds.length > 0 ? counter.categoryIds : state.categories.map(c => c.id)
-  const waiting = state.tickets
-    .filter(t => {
-      if (t.status !== 'waiting') return false
-      // Forced-to-this-counter takes priority and bypasses category/stage filters
-      if (t.forcedCounterId) return t.forcedCounterId === counterId
-      if (!validCategories.includes(t.categoryId)) return false
-      // Stage filtering: if counter has stageIds, only serve tickets whose
-      // current stage is one of those.
-      if (counter.stageIds && counter.stageIds.length > 0) {
-        const cat = state.categories.find(c => c.id === t.categoryId)
-        const ticketStage = cat?.stages?.[t.currentStage || 0]
-        if (!ticketStage || !counter.stageIds.includes(ticketStage.id)) return false
-      }
-      return true
-    })
-    .sort((a, b) => {
-      // Forced transfers first, then by ticket number
-      if (a.forcedCounterId && !b.forcedCounterId) return -1
-      if (b.forcedCounterId && !a.forcedCounterId) return 1
-      return a.number - b.number
-    })
-
-  const next = waiting[0]
   if (!next) {
     counter.currentTicket = null
     return null

@@ -356,9 +356,17 @@
   border-radius: 6px; transition: background 0.1s;
 }
 .adm-wait-row:hover { background: var(--bg-subtle); }
+.adm-wait-row--clickable {
+  width: 100%; border: 1px solid transparent; background: transparent;
+  cursor: pointer; text-align: left; font: inherit; color: inherit;
+}
+.adm-wait-row--clickable:hover:not(:disabled) {
+  background: var(--blue-dim); border-color: var(--blue);
+}
+.adm-wait-row--clickable:disabled { cursor: not-allowed; opacity: 0.55; }
 .adm-wait-num { font-family: var(--font-mono); font-weight: 600; font-size: 13px; color: var(--white); }
 .adm-wait-cat { font-size: 10px; font-weight: 600; flex: 1; }
-.adm-wait-time { font-size: 10px; color: var(--gray-3); }
+.adm-wait-time { font-size: 10px; color: var(--gray-3); font-variant-numeric: tabular-nums; }
 .adm-empty { text-align: center; font-size: 12px; color: var(--gray-3); padding: 32px 8px; }
 
 /* Analytics */

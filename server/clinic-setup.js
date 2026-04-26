@@ -14,8 +14,10 @@ export const CLINIC_COUNTERS = [
   { id: 2, name: 'Reception 2', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageIds: ['reception'], lastActiveAt: 0 },
   { id: 3, name: 'Reception 3', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageIds: ['reception'], lastActiveAt: 0 },
 
-  // ---- OPD (Outpatient Department) — also administers eye drops ----
-  { id: 4, name: 'OPD A', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageIds: ['opd', 'eye-drops'], lastActiveAt: 0 },
+  // ---- OPD (Outpatient Department) ----
+  // OPD only handles 'opd' stage on Call Next. Eye-drops patients wait
+  // until an operator manually clicks them in the waiting sidebar.
+  { id: 4, name: 'OPD A', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageIds: ['opd'], lastActiveAt: 0 },
 
   // ---- Optometrist Rooms ----
   { id: 5, name: 'Optometrist B1', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageIds: ['optometrist'], lastActiveAt: 0 },

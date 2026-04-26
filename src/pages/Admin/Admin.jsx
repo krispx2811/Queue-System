@@ -32,6 +32,13 @@ export default function Admin() {
   const [adminToast, setAdminToast] = useState(false)
   const [savedToast, setSavedToast] = useState(false)
   const savedToastTimerRef = useRef(null)
+  // Tick once a minute so wait-time labels in the waiting sidebar update
+  // without needing fresh state from the server.
+  const [, setNowTick] = useState(0)
+  useEffect(() => {
+    const i = setInterval(() => setNowTick(n => n + 1), 30000)
+    return () => clearInterval(i)
+  }, [])
 
   const updateSettings = useCallback((updates) => {
     emit('settings:update', updates).then(() => {
@@ -601,20 +608,35 @@ export default function Admin() {
 
             </div>
 
-            {/* Waiting list sidebar */}
+            {/* Waiting list sidebar — clickable so the operator can pick
+                a specific patient instead of the next-in-queue (e.g. an
+                eye-drops patient that OPD is now ready for). */}
             <div className="adm-sidebar">
               <h3 className="adm-sidebar-title">Waiting ({waiting.length})</h3>
               <div className="adm-sidebar-list">
-                {waiting.sort((a, b) => a.number - b.number).map(t => {
+                {waiting.sort((a, b) => a.createdAt - b.createdAt).map(t => {
                   const cat = state.categories.find(c => c.id === t.categoryId)
                   const stage = cat?.stages?.[t.currentStage || 0]
+                  const waitMs = Date.now() - (t.createdAt || Date.now())
+                  const waitMin = Math.floor(waitMs / 60000)
+                  const waitText = waitMin < 1 ? '<1m' : waitMin < 60
+                    ? `${waitMin}m`
+                    : `${Math.floor(waitMin / 60)}h ${waitMin % 60}m`
                   return (
-                    <div key={t.number} className="adm-wait-row">
+                    <button
+                      key={t.number}
+                      className="adm-wait-row adm-wait-row--clickable"
+                      onClick={() => counterId && emit('ticket:call', { counterId, ticketNumber: t.number })}
+                      disabled={!counterId || counter?.status === 'closed'}
+                      title={counterId ? `Call ${t.displayNumber || padNumber(t.number)} to ${counter?.name}` : 'Join a counter to call a patient'}
+                    >
                       <span className="adm-wait-num">{(t.displayNumber || padNumber(t.number))}</span>
                       <span className="adm-wait-cat" style={{ color: cat?.color }}>{cat?.name}</span>
                       {stage && <span className="adm-wait-stage">{stage.name}</span>}
-                      <span className="adm-wait-time">{formatTime(t.createdAt)}</span>
-                    </div>
+                      <span className="adm-wait-time" style={{ color: waitMin >= 15 ? 'var(--red)' : waitMin >= 5 ? 'var(--amber)' : undefined }}>
+                        {waitText}
+                      </span>
+                    </button>
                   )
                 })}
                 {waiting.length === 0 && <p className="adm-empty">No one waiting</p>}

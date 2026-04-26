@@ -257,8 +257,11 @@ io.on('connection', (socket) => {
     cb?.(ticket)
   })
 
-  socket.on('ticket:call', ({ counterId }, cb) => {
-    const ticket = callNext(state, counterId)
+  socket.on('ticket:call', ({ counterId, ticketNumber }, cb) => {
+    // ticketNumber is optional — when present the operator picked a specific
+    // waiting patient (e.g. an eye-drops patient at OPD), so call that one.
+    // Otherwise fall back to "next waiting ticket for this counter's stages".
+    const ticket = callNext(state, counterId, ticketNumber ?? null)
     broadcast()
     if (ticket) {
       const cName = state.counters.find(c => c.id === counterId)?.name || ''
