@@ -1211,6 +1211,53 @@ export default function Admin() {
                   </div>
                 </div>
                 <div className="sg-field">
+                  <label className="sg-label">Announcement Text</label>
+                  <p className="sg-hint">
+                    Customize what the voice says for "Call Next" and "Recall".
+                    Available placeholders: <code>{'{n}'}</code> ticket number,
+                    <code>{' {counter} '}</code> counter name,
+                    <code>{' {category} '}</code> visit type. Leave blank to use the default.
+                  </p>
+                  {[
+                    { action: 'next', label: 'Call Next' },
+                    { action: 'recall', label: 'Recall' },
+                  ].map(({ action, label }) => (
+                    <div key={action} style={{ marginTop: 12 }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray-2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        {label}
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        {['en', 'ar'].map(lang => (
+                          <textarea
+                            key={lang}
+                            className="adm-textarea"
+                            rows={2}
+                            placeholder={lang === 'ar'
+                              ? (action === 'next'
+                                ? '{category}، رقم {n}، تفضل إلى {counter}'
+                                : 'تذكير، {category}، رقم {n}، تفضل إلى {counter}')
+                              : (action === 'next'
+                                ? 'Now serving {category} number {n} at {counter}'
+                                : 'Recalling {category} number {n} at {counter}')}
+                            value={state.settings.voiceTexts?.[action]?.[lang] || ''}
+                            onChange={e => {
+                              const cur = state.settings.voiceTexts || { next: { en: '', ar: '' }, recall: { en: '', ar: '' } }
+                              updateSettings({
+                                voiceTexts: {
+                                  ...cur,
+                                  [action]: { ...(cur[action] || {}), [lang]: e.target.value },
+                                },
+                              })
+                            }}
+                            style={{ direction: lang === 'ar' ? 'rtl' : 'ltr' }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="sg-field">
                   <label className="sg-label">Test Voice</label>
                   <div className="adm-tts-test">
                     {LANGUAGES.map(lang => (

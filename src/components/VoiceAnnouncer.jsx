@@ -57,12 +57,26 @@ export default function VoiceAnnouncer() {
             const ar = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩']
             ticketNum = ticketNum.replace(/\d/g, d => ar[d])
           }
-          const text = t(textKey, lang, {
+          const params = {
             n: ticketNum,
             counter: counterTranslated,
             stage: stageTranslated,
             category: categoryLocalized,
-          })
+          }
+          // Admin can override the next/recall templates per language in
+          // Settings → Sound & Voice. Empty string = use the built-in
+          // i18n template. Advance/finish announcements aren't customizable.
+          const customKey = item.action === 'recall' ? 'recall' : item.action === 'next' ? 'next' : null
+          const customText = customKey ? settingsRef.current?.voiceTexts?.[customKey]?.[lang] : null
+          let text
+          if (customText && customText.trim()) {
+            text = customText
+            for (const [k, v] of Object.entries(params)) {
+              text = text.split(`{${k}}`).join(v ?? '')
+            }
+          } else {
+            text = t(textKey, lang, params)
+          }
 
           window.speechSynthesis?.cancel()
           await speakSequential(text, lang, settingsRef.current)

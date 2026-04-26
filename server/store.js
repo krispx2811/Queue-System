@@ -106,6 +106,14 @@ function makeDefault() {
       backgroundTheme: 'none',
       customCSS: '',
       displayLayout: 'classic',
+      // Per-language overrides for the spoken announcement. Empty string =
+      // fall back to the built-in template in src/utils/i18n.js. Available
+      // placeholders: {n} ticket number, {counter} counter name (translated),
+      // {category} category name (localized).
+      voiceTexts: {
+        next: { en: '', ar: '' },
+        recall: { en: '', ar: '' },
+      },
     },
   }
 }
