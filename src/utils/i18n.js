@@ -345,7 +345,7 @@ const ROOM_TERMS = {
     'reception': 'الاستقبال',
     'opd': 'العيادة الخارجية',
     'doctor': 'الطبيب',
-    'optometrist': 'اختصاصي النظر',
+    'optometrist': 'أخصائي البصريات',
     'eye drops': 'قطرات العين',
     'pre-op': 'ما قبل العملية',
     'pre op': 'ما قبل العملية',
