@@ -51,8 +51,14 @@ const ADMIN_GROUPS = [
   },
 ]
 
+// Admin password is checked entirely client-side. Anyone reading the JS
+// bundle can find this string — that's accepted, since admin auth here is
+// a UX gate (hide config from receptionists), not a real security boundary.
+// To change: edit this string and src/pages/Admin/Admin.jsx, then redeploy.
+const ADMIN_PASSWORD = '2811'
+
 export default function Landing() {
-  const { state, emit, emitVoid } = useSocket()
+  const { state } = useSocket()
   const waiting = state.tickets.filter(t => t.status === 'waiting').length
   const served = state.tickets.filter(t => t.status === 'served').length
   const activeCounters = state.counters.filter(c => c.status === 'open').length
@@ -62,15 +68,11 @@ export default function Landing() {
   const [pwInput, setPwInput] = useState('')
   const [pwError, setPwError] = useState(false)
 
-  const handleUnlock = async () => {
+  const handleUnlock = () => {
     if (!pwInput.trim()) return
-    const pw = pwInput.trim()
-    const ok = await emit('auth:check', { password: pw, role: 'admin' })
-    if (ok) {
+    if (pwInput.trim() === ADMIN_PASSWORD) {
       setIsAdmin(true)
       sessionStorage.setItem('queueIsAdmin', 'true')
-      // Persist password so reconnects can re-establish server-side admin flag.
-      sessionStorage.setItem('queueAdminPw', pw)
       setPwModal(false)
       setPwInput('')
       setPwError(false)
@@ -82,8 +84,6 @@ export default function Landing() {
   const handleLock = () => {
     setIsAdmin(false)
     sessionStorage.removeItem('queueIsAdmin')
-    sessionStorage.removeItem('queueAdminPw')
-    emitVoid('auth:logout')
   }
 
   return (

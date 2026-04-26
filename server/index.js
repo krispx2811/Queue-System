@@ -45,14 +45,11 @@ setInterval(async () => {
   }
 }, 30000)
 
-// ===== Auth + safety helpers =====
-function requireAdmin(socket, cb) {
-  // If no admin password is set, anyone is admin (matches the existing "open" mode).
-  if (!state.roles.adminPassword) return true
-  if (socket.data?.isAdmin) return true
-  cb?.({ error: 'unauthorized' })
-  return false
-}
+// ===== Safety helpers =====
+// Admin auth is purely client-side (hardcoded password in the React bundle).
+// The server does not enforce who can perform admin actions — the UI hides
+// them from non-admins and that's the only gate. This trades real security
+// for simplicity; acceptable for a private clinic LAN deploy.
 
 function isSafeWebhookUrl(url) {
   try {
@@ -205,8 +202,9 @@ app.get('/api/tts/voices', async (_, res) => {
 
 // ===== Socket.IO =====
 io.on('connection', (socket) => {
-  socket.data.isAdmin = false
-  // Per-socket ticket:take rate limiter (max 30 per minute)
+  // Per-socket ticket:take rate limiter (max 30 per minute) — kept even
+  // though admin auth is now client-side, since this protects the public
+  // kiosk endpoint from spam.
   socket.data.ticketTakes = []
   socket.emit('state:sync', getPublicState())
 
@@ -223,31 +221,9 @@ io.on('connection', (socket) => {
   })
 
   socket.on('license:deactivate', (_, cb) => {
-    if (!requireAdmin(socket, cb)) return
     state.license = ''
     addAudit(state, 'license:deactivated', '', '')
     saveStore(state)
-    broadcast()
-    cb?.({ ok: true })
-  })
-
-  // ---- Auth ----
-  socket.on('auth:check', ({ password, role }, cb) => {
-    const pw = role === 'admin' ? state.roles.adminPassword : state.roles.operatorPassword
-    const ok = !pw || password === pw
-    if (ok && role === 'admin') socket.data.isAdmin = true
-    cb?.(ok)
-  })
-
-  socket.on('auth:logout', () => {
-    socket.data.isAdmin = false
-  })
-
-  socket.on('auth:setPasswords', ({ adminPassword, operatorPassword }, cb) => {
-    if (!requireAdmin(socket, cb)) return
-    if (adminPassword !== undefined) state.roles.adminPassword = adminPassword
-    if (operatorPassword !== undefined) state.roles.operatorPassword = operatorPassword
-    addAudit(state, 'auth:passwords-updated', 'admin')
     broadcast()
     cb?.({ ok: true })
   })
@@ -399,8 +375,6 @@ io.on('connection', (socket) => {
   socket.on('counter:update', ({ counterId, name, operatorName, categoryIds, stageId }, cb) => {
     const counter = state.counters.find(c => c.id === counterId)
     if (!counter) { cb?.({ error: 'not found' }); return }
-    const isAdmin = !state.roles.adminPassword || socket.data?.isAdmin
-    // operatorName is operator-level (joining/leaving a counter is always allowed)
     if (operatorName !== undefined) {
       if (!operatorName && counter.operatorName) {
         clockOut(state, counter.operatorName)
@@ -408,18 +382,14 @@ io.on('connection', (socket) => {
       }
       counter.operatorName = operatorName
     }
-    // Configuration fields are admin-only — silently dropped for non-admins.
-    if (isAdmin) {
-      if (name !== undefined) { addAudit(state, 'counter:rename', '', `${counter.name} → ${name}`); counter.name = name }
-      if (categoryIds !== undefined) counter.categoryIds = categoryIds
-      if (stageId !== undefined) counter.stageId = stageId
-    }
+    if (name !== undefined) { addAudit(state, 'counter:rename', '', `${counter.name} → ${name}`); counter.name = name }
+    if (categoryIds !== undefined) counter.categoryIds = categoryIds
+    if (stageId !== undefined) counter.stageId = stageId
     broadcast()
     cb?.({ ok: true })
   })
 
   socket.on('counter:add', (_, cb) => {
-    if (!requireAdmin(socket, cb)) return
     const maxId = Math.max(0, ...state.counters.map(c => c.id))
     const counter = { id: maxId + 1, name: `Counter ${maxId + 1}`, operatorName: '', currentTicket: null, status: 'open', categoryIds: [], lastActiveAt: 0 }
     state.counters.push(counter)
@@ -429,7 +399,6 @@ io.on('connection', (socket) => {
   })
 
   socket.on('counter:delete', ({ counterId }, cb) => {
-    if (!requireAdmin(socket, cb)) return
     const counter = state.counters.find(c => c.id === counterId)
     if (counter) addAudit(state, 'counter:delete', '', counter.name)
     state.counters = state.counters.filter(c => c.id !== counterId)
@@ -439,7 +408,6 @@ io.on('connection', (socket) => {
 
   // ---- Admin ops ----
   socket.on('admin:reset', async (_, cb) => {
-    if (!requireAdmin(socket, cb)) return
     addAudit(state, 'admin:reset', '', 'Queue reset')
     await resetQueue(state)
     broadcast()
@@ -447,7 +415,6 @@ io.on('connection', (socket) => {
   })
 
   socket.on('admin:announcement', ({ text, action }, cb) => {
-    if (!requireAdmin(socket, cb)) return
     if (action === 'add' && text.trim()) {
       if (!state.announcements.includes(text.trim())) {
         state.announcements.push(text.trim())
@@ -460,17 +427,16 @@ io.on('connection', (socket) => {
     cb?.({ ok: true })
   })
 
-  socket.on('admin:analytics', (_, cb) => { if (!requireAdmin(socket, cb)) return; cb?.(getAnalytics(state)) })
-  socket.on('admin:advancedAnalytics', (_, cb) => { if (!requireAdmin(socket, cb)) return; cb?.(getAdvancedAnalytics(state)) })
-  socket.on('admin:monthlyAnalytics', (_, cb) => { if (!requireAdmin(socket, cb)) return; cb?.(getMonthlyAnalytics(state)) })
-  socket.on('admin:export', (_, cb) => { if (!requireAdmin(socket, cb)) return; cb?.(state.tickets) })
+  socket.on('admin:analytics', (_, cb) => { cb?.(getAnalytics(state)) })
+  socket.on('admin:advancedAnalytics', (_, cb) => { cb?.(getAdvancedAnalytics(state)) })
+  socket.on('admin:monthlyAnalytics', (_, cb) => { cb?.(getMonthlyAnalytics(state)) })
+  socket.on('admin:export', (_, cb) => { cb?.(state.tickets) })
   socket.on('admin:categoryWaits', (_, cb) => cb?.(getCategoryWaitTimes(state))) // kiosk uses this
-  socket.on('admin:auditLog', (_, cb) => { if (!requireAdmin(socket, cb)) return; cb?.(state.auditLog.slice(0, 200)) })
-  socket.on('admin:shifts', (_, cb) => { if (!requireAdmin(socket, cb)) return; cb?.(state.shifts.slice(-100)) })
+  socket.on('admin:auditLog', (_, cb) => { cb?.(state.auditLog.slice(0, 200)) })
+  socket.on('admin:shifts', (_, cb) => { cb?.(state.shifts.slice(-100)) })
 
   // ---- Settings ----
   socket.on('settings:update', async (settings, cb) => {
-    if (!requireAdmin(socket, cb)) return
     Object.assign(state.settings, settings)
     broadcast()
     // Force immediate save so settings never get lost
@@ -483,7 +449,6 @@ io.on('connection', (socket) => {
 
   // ---- Category management ----
   socket.on('category:add', ({ name, nameAr, nameUr, nameFr, color, prefix, stages }, cb) => {
-    if (!requireAdmin(socket, cb)) return
     const id = name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now()
     const cat = { id, name, nameAr: nameAr || '', nameUr: nameUr || '', nameFr: nameFr || '', color, prefix: prefix || name.charAt(0).toUpperCase(), stages: stages || [] }
     state.categories.push(cat)
@@ -493,7 +458,6 @@ io.on('connection', (socket) => {
   })
 
   socket.on('category:update', ({ id, name, nameAr, nameUr, nameFr, color, prefix, stages }, cb) => {
-    if (!requireAdmin(socket, cb)) return
     const cat = state.categories.find(c => c.id === id)
     if (cat) {
       if (name !== undefined) cat.name = name
@@ -509,7 +473,6 @@ io.on('connection', (socket) => {
   })
 
   socket.on('category:remove', ({ id }, cb) => {
-    if (!requireAdmin(socket, cb)) return
     const cat = state.categories.find(c => c.id === id)
     if (cat) addAudit(state, 'category:remove', '', cat.name)
     state.categories = state.categories.filter(c => c.id !== id)
@@ -519,7 +482,6 @@ io.on('connection', (socket) => {
 
   // ---- Branches ----
   socket.on('branch:add', ({ name, nameAr }, cb) => {
-    if (!requireAdmin(socket, cb)) return
     const id = name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now()
     const branch = { id, name, nameAr: nameAr || '' }
     state.branches.push(branch)
@@ -529,7 +491,6 @@ io.on('connection', (socket) => {
   })
 
   socket.on('branch:switch', ({ branchId }, cb) => {
-    if (!requireAdmin(socket, cb)) return
     if (state.branches.find(b => b.id === branchId)) {
       state.activeBranch = branchId
       addAudit(state, 'branch:switch', '', branchId)
@@ -539,7 +500,6 @@ io.on('connection', (socket) => {
   })
 
   socket.on('branch:remove', ({ branchId }, cb) => {
-    if (!requireAdmin(socket, cb)) return
     if (state.branches.length <= 1) return
     state.branches = state.branches.filter(b => b.id !== branchId)
     if (state.activeBranch === branchId) state.activeBranch = state.branches[0].id
@@ -549,7 +509,6 @@ io.on('connection', (socket) => {
 
   // ---- Webhooks ----
   socket.on('webhook:add', ({ url, events }, cb) => {
-    if (!requireAdmin(socket, cb)) return
     if (!isSafeWebhookUrl(url)) { cb?.({ error: 'invalid url' }); return }
     const wh = { id: Date.now().toString(), url, events: events || ['*'] }
     state.webhooks = state.webhooks || []
@@ -560,14 +519,12 @@ io.on('connection', (socket) => {
   })
 
   socket.on('webhook:remove', ({ id }, cb) => {
-    if (!requireAdmin(socket, cb)) return
     state.webhooks = (state.webhooks || []).filter(w => w.id !== id)
     broadcast()
     cb?.({ ok: true })
   })
 
   socket.on('webhook:list', (_, cb) => {
-    if (!requireAdmin(socket, cb)) return
     cb?.(state.webhooks || [])
   })
 })

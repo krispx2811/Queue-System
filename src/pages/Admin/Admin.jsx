@@ -9,6 +9,9 @@ import { SOUND_THEMES, playChime } from '../../utils/sounds'
 import { LANGUAGES } from '../../utils/i18n'
 import './Admin.css'
 
+// Admin password — must match ADMIN_PASSWORD in Landing.jsx. Client-side only.
+const ADMIN_PASSWORD = '2811'
+
 export default function Admin() {
   const { state, emit, emitVoid } = useSocket()
   const [counterId, setCounterId] = useState(() => {
@@ -46,10 +49,9 @@ export default function Admin() {
     sessionStorage.setItem('queueIsAdmin', isAdmin)
   }, [isAdmin])
 
-  const handleAdminLogin = async () => {
-    const ok = await emit('auth:check', { password: adminPwInput, role: 'admin' })
-    if (ok) {
-      sessionStorage.setItem('queueAdminPw', adminPwInput)
+  const handleAdminLogin = () => {
+    if (adminPwInput === ADMIN_PASSWORD) {
+      sessionStorage.setItem('queueIsAdmin', 'true')
       setIsAdmin(true); setAdminPwError(false); setAdminPwInput(''); setTab('queue')
       setAdminToast(true); setTimeout(() => setAdminToast(false), 2500)
     } else setAdminPwError(true)
@@ -75,8 +77,6 @@ export default function Admin() {
   const [newCatColor, setNewCatColor] = useState('#4f8ff7')
   const [webhookUrl, setWebhookUrl] = useState('')
   const [monthlyData, setMonthlyData] = useState(null)
-  const [pwAdminInput, setPwAdminInput] = useState('')
-  const [pwOperatorInput, setPwOperatorInput] = useState('')
   const [newBranchName, setNewBranchName] = useState('')
 
   const heldTickets = state.tickets.filter(t => t.status === 'held')
@@ -904,34 +904,15 @@ export default function Admin() {
             </div>
             )}
 
-            {/* Passwords */}
+            {/* Access Control — admin password is hardcoded client-side. */}
             {showSection('access') && (
             <div className="adm-set-section">
-              <h3>Access Passwords</h3>
-              <p className="adm-set-hint">Set passwords to restrict access (leave empty for no restriction)</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, width: 70, color: 'var(--gray-2)' }}>Admin</span>
-                  <input className="adm-input" type="password" placeholder="Admin password (leave blank to keep)"
-                    value={pwAdminInput} onChange={e => setPwAdminInput(e.target.value)} />
-                </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, width: 70, color: 'var(--gray-2)' }}>Operator</span>
-                  <input className="adm-input" type="password" placeholder="Operator password (leave blank to keep)"
-                    value={pwOperatorInput} onChange={e => setPwOperatorInput(e.target.value)} />
-                </div>
-                <button className="adm-act" style={{ width: 'fit-content' }} onClick={async () => {
-                  // Only send fields that were actually edited so blank inputs don't wipe the other.
-                  const updates = {}
-                  if (pwAdminInput) updates.adminPassword = pwAdminInput
-                  if (pwOperatorInput) updates.operatorPassword = pwOperatorInput
-                  if (Object.keys(updates).length === 0) return
-                  await emit('auth:setPasswords', updates)
-                  // Keep the new admin password in session so reconnects re-auth.
-                  if (updates.adminPassword) sessionStorage.setItem('queueAdminPw', updates.adminPassword)
-                  setPwAdminInput(''); setPwOperatorInput('')
-                }}>Save Passwords</button>
-              </div>
+              <h3>Admin Password</h3>
+              <p className="adm-set-hint">
+                The admin password is hardcoded in the client bundle. To change it,
+                edit <code>ADMIN_PASSWORD</code> in <code>src/pages/Landing/Landing.jsx</code>
+                and <code>src/pages/Admin/Admin.jsx</code>, then redeploy.
+              </p>
             </div>
             )}
           </div>

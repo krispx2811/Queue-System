@@ -99,13 +99,6 @@ export function SocketProvider({ children }) {
     socket.on('state:sync', (data) => setState(data))
     socket.on('ticket:announced', (data) => setAnnounced(data))
 
-    // Re-auth automatically on connect / reconnect so the server-side
-    // socket.data.isAdmin flag matches the client's saved login.
-    socket.on('connect', () => {
-      const pw = sessionStorage.getItem('queueAdminPw')
-      if (pw) socket.emit('auth:check', { password: pw, role: 'admin' })
-    })
-
     return () => socket.disconnect()
   }, [])
 
