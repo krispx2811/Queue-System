@@ -207,6 +207,22 @@ export async function loadStore() {
       if (!ctrs.data?.length) await supabase.from('counters').upsert(state.counters.map(dbCounter))
       if (!brs.data?.length) await supabase.from('branches').upsert(state.branches.map(dbBranch))
 
+      // Reconcile any counter.currentTicket that no longer points at a
+      // serving ticket assigned to that counter. Earlier code paths could
+      // leave this inconsistent (e.g. transferTicket only freed the source
+      // counter when ticket.counterId still matched), causing the same
+      // ticket to appear as both "now serving" and "waiting" on Display.
+      let fixed = 0
+      for (const c of state.counters) {
+        if (!c.currentTicket) continue
+        const t = state.tickets.find(tk => tk.number === c.currentTicket)
+        if (!t || t.status !== 'serving' || t.counterId !== c.id) {
+          c.currentTicket = null
+          fixed++
+        }
+      }
+      if (fixed > 0) console.log(`✓ Reconciled ${fixed} stale counter.currentTicket reference(s)`)
+
       console.log(`✓ Loaded from Supabase: ${state.counters.length} counters, ${state.categories.length} categories, ${state.tickets.length} tickets, ${state.auditLog.length} audit entries`)
       return state
     } catch (e) {
@@ -467,12 +483,13 @@ export function transferTicket(state, ticketNumber, toCategoryId, toCounterId = 
     at: Date.now(),
   })
 
-  // Free up the old counter
-  if (ticket.counterId) {
-    const oldCounter = state.counters.find(c => c.id === ticket.counterId)
-    if (oldCounter && oldCounter.currentTicket === ticketNumber) {
-      oldCounter.currentTicket = null
-    }
+  // Free any counter still holding this ticket — not just ticket.counterId.
+  // Iterating defends against the rare case where a previous code path
+  // cleared the ticket's counterId without clearing the counter's
+  // currentTicket, which left the ticket showing in both "now serving"
+  // and "waiting" on the Display.
+  for (const c of state.counters) {
+    if (c.currentTicket === ticketNumber) c.currentTicket = null
   }
 
   if (toCategoryId) ticket.categoryId = toCategoryId
@@ -509,10 +526,9 @@ export function transferToRoom(state, ticketNumber, toCounterId, fromCounterId) 
     type: 'room',
   })
 
-  // Free up the source counter
-  const fromCounter = state.counters.find(c => c.id === fromCounterId)
-  if (fromCounter && fromCounter.currentTicket === ticketNumber) {
-    fromCounter.currentTicket = null
+  // Free any counter still holding this ticket (see transferTicket).
+  for (const c of state.counters) {
+    if (c.currentTicket === ticketNumber) c.currentTicket = null
   }
 
   // Align ticket stage with destination counter's stage (if it has any).

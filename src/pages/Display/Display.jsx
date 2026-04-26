@@ -117,7 +117,20 @@ export default function Display() {
     return () => { document.removeEventListener('fullscreenchange', h); document.removeEventListener('webkitfullscreenchange', h) }
   }, [])
 
-  const activeCounters = state.counters.filter(c => c.status === 'open')
+  // Sanitize counter.currentTicket: it must point to a ticket that's actually
+  // serving at this counter, otherwise the layouts would render the same ticket
+  // both as "now serving" and as "waiting" when state desyncs (e.g. after a
+  // transfer that didn't fully clear the source counter).
+  const activeCounters = state.counters
+    .filter(c => c.status === 'open')
+    .map(c => {
+      if (!c.currentTicket) return c
+      const t = state.tickets.find(t => t.number === c.currentTicket)
+      if (!t || t.status !== 'serving' || t.counterId !== c.id) {
+        return { ...c, currentTicket: null }
+      }
+      return c
+    })
   const allClosed = activeCounters.length === 0
   const waitingTickets = state.tickets.filter(t => t.status === 'waiting').sort((a, b) => a.number - b.number)
   const servedTickets = state.tickets.filter(t => t.status === 'served').sort((a, b) => b.completedAt - a.completedAt)
