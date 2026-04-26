@@ -201,8 +201,12 @@ const translations = {
     floorMap: 'خريطة الطابق',
     voiceNowServing: 'الرقم {n} تفضل إلى {counter}',
     voiceNowServingCat: '{category}، رقم {n}، تفضل إلى {counter}',
-    voiceRecall: 'إعادة نداء الرقم {n} إلى {counter}',
-    voiceRecallCat: 'إعادة نداء {category}، رقم {n}، إلى {counter}',
+    // "تذكير" (reminder) instead of "إعادة نداء" — the multilingual model
+    // mispronounces "إعادة نداء" with what sounds like an Urdu/Hindi accent
+    // since "نداء" is shared script across Arabic/Urdu and reading direction
+    // confuses the voice. "تذكير" is unambiguously Arabic and pronounces cleanly.
+    voiceRecall: 'تذكير، الرقم {n} تفضل إلى {counter}',
+    voiceRecallCat: 'تذكير، {category}، رقم {n}، تفضل إلى {counter}',
   },
   ur: {
     nowServing: 'خدمت ہو رہی ہے',
