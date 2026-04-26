@@ -32,7 +32,13 @@ export default function VoiceAnnouncer() {
           const lang = languages[i]
           const textKey = item.action === 'recall' ? 'voiceRecall' : 'voiceNowServing'
           const counterTranslated = translateRoom(item.counterName || '', lang)
-          const text = t(textKey, lang, { n: item.ticketNumber, counter: counterTranslated })
+          // Convert digits to Arabic-Indic for Arabic so the voice doesn't read them in English
+          let ticketNum = String(item.ticketNumber)
+          if (lang === 'ar') {
+            const ar = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩']
+            ticketNum = ticketNum.replace(/\d/g, d => ar[d])
+          }
+          const text = t(textKey, lang, { n: ticketNum, counter: counterTranslated })
 
           window.speechSynthesis?.cancel()
           await speakSequential(text, lang, settingsRef.current)

@@ -371,7 +371,7 @@ const ROOM_TERMS = {
   },
 }
 
-// Translate a room/counter name like "Reception 1" → "الاستقبال 1"
+// Translate a room/counter name like "Reception 1" → "الاستقبال رقم 1"
 export function translateRoom(name, lang) {
   if (!name || lang === 'en') return name || ''
   const terms = ROOM_TERMS[lang]
@@ -383,6 +383,20 @@ export function translateRoom(name, lang) {
     const regex = new RegExp(`\\b${key.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'gi')
     result = result.replace(regex, terms[key])
   }
+
+  // For Arabic, replace English letter suffixes (D1, B2, A) with spelled-out
+  // versions so the voice doesn't switch back to English to say them.
+  // Examples: "الطبيب D1" → "الطبيب رقم 1", "اختصاصي النظر B1" → "اختصاصي النظر 1"
+  if (lang === 'ar') {
+    // "الطبيب D2" → "الطبيب رقم 2"  (drop letter, add رقم)
+    result = result.replace(/\s+[A-Z](\d+)\b/g, ' رقم $1')
+    // "OPD A" / "الاستقبال A" → just drop the lone letter
+    result = result.replace(/\s+[A-Z]\b/g, '')
+    // Convert digits to Arabic-Indic numerals so the voice says them naturally
+    const arDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩']
+    result = result.replace(/\d/g, d => arDigits[d])
+  }
+
   return result
 }
 
