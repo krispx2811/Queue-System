@@ -1133,7 +1133,7 @@ export default function Admin() {
                   <div className="adm-tts-test">
                     {LANGUAGES.map(lang => (
                       <button key={lang.code} className="adm-tts-btn"
-                        onClick={() => testSpeak(lang.code === 'en' ? 'Now serving number 42 at Counter 1' : lang.code === 'ar' ? 'الرقم ٤٢ تفضل إلى الشباك ١' : lang.code === 'ur' ? 'نمبر 42 کاؤنٹر 1 پر آئیں' : 'Numéro 42 au guichet 1 s\'il vous plaît', lang.code, state.settings)}>
+                        onClick={() => testSpeak(lang.code === 'en' ? 'Now serving New Visit number 42 at Reception 1' : lang.code === 'ar' ? 'زيارة جديدة، رقم ٤٢، تفضل إلى الاستقبال ١' : lang.code === 'ur' ? 'نیا دورہ، نمبر 42 استقبالیہ 1 پر آئیں' : 'Nouvelle visite, numéro 42 à la Réception 1 s\'il vous plaît', lang.code, state.settings)}>
                         <span className="adm-tts-play">&#9654;</span>
                         <span>{lang.native}</span>
                       </button>

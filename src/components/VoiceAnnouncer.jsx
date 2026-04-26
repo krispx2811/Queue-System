@@ -21,7 +21,7 @@ export default function VoiceAnnouncer() {
 
     while (queueRef.current.length > 0) {
       const item = queueRef.current.shift()
-      const { soundTheme = 'default', languages = ['en', 'ar'], volume = 0.8 } = settingsRef.current
+      const { soundTheme = 'doorbell', languages = ['en', 'ar'], volume = 0.8 } = settingsRef.current
 
       try {
         stopAll()
@@ -30,15 +30,21 @@ export default function VoiceAnnouncer() {
 
         for (let i = 0; i < languages.length; i++) {
           const lang = languages[i]
-          const textKey = item.action === 'recall' ? 'voiceRecall' : 'voiceNowServing'
           const counterTranslated = translateRoom(item.counterName || '', lang)
+          // Pick the localized category name; fall back to English then '' so
+          // a missing translation doesn't break the sentence.
+          const categoryLocalized = item.categoryNames?.[lang] || item.categoryNames?.en || ''
+          // Use the *Cat variant only when we actually have a category — an
+          // empty {category} would leave a leading comma in Arabic ("،  رقم …").
+          const baseKey = item.action === 'recall' ? 'voiceRecall' : 'voiceNowServing'
+          const textKey = categoryLocalized ? `${baseKey}Cat` : baseKey
           // Convert digits to Arabic-Indic for Arabic so the voice doesn't read them in English
           let ticketNum = String(item.ticketNumber)
           if (lang === 'ar') {
             const ar = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩']
             ticketNum = ticketNum.replace(/\d/g, d => ar[d])
           }
-          const text = t(textKey, lang, { n: ticketNum, counter: counterTranslated })
+          const text = t(textKey, lang, { n: ticketNum, counter: counterTranslated, category: categoryLocalized })
 
           window.speechSynthesis?.cancel()
           await speakSequential(text, lang, settingsRef.current)
@@ -72,11 +78,23 @@ export default function VoiceAnnouncer() {
       seenKeysRef.current = new Set(Array.from(seenKeysRef.current).slice(-100))
     }
 
+    // Resolve the localized category names at enqueue time so the async
+    // processor doesn't depend on still-fresh state.categories. Server
+    // attaches categoryId to every ticket:announced event.
+    const cat = state.categories.find(c => c.id === announced.categoryId)
+    const categoryNames = cat ? {
+      en: cat.name,
+      ar: cat.nameAr || cat.name,
+      ur: cat.nameUr || cat.name,
+      fr: cat.nameFr || cat.name,
+    } : null
+
     queueRef.current.push({
       ticketNumber: announced.ticketNumber,
       action: announced.action,
       counterId: announced.counterId,
       counterName: announced.counterName,
+      categoryNames,
     })
 
     processQueue()

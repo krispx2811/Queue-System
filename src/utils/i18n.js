@@ -98,7 +98,9 @@ const translations = {
     floorMap: 'Floor Map',
     // Voice
     voiceNowServing: 'Now serving number {n} at {counter}',
+    voiceNowServingCat: 'Now serving {category} number {n} at {counter}',
     voiceRecall: 'Recalling number {n} at {counter}',
+    voiceRecallCat: 'Recalling {category} number {n} at {counter}',
   },
   ar: {
     nowServing: 'يتم خدمة الرقم',
@@ -198,7 +200,9 @@ const translations = {
     logoHint: 'الصق رابط صورة للعلامة التجارية',
     floorMap: 'خريطة الطابق',
     voiceNowServing: 'الرقم {n} تفضل إلى {counter}',
+    voiceNowServingCat: '{category}، رقم {n}، تفضل إلى {counter}',
     voiceRecall: 'إعادة نداء الرقم {n} إلى {counter}',
+    voiceRecallCat: 'إعادة نداء {category}، رقم {n}، إلى {counter}',
   },
   ur: {
     nowServing: 'خدمت ہو رہی ہے',
@@ -255,7 +259,9 @@ const translations = {
     time: 'وقت',
     currentlyServing: 'فی الحال خدمت میں',
     voiceNowServing: 'نمبر {n} {counter} پر آئیں',
+    voiceNowServingCat: '{category}، نمبر {n} {counter} پر آئیں',
     voiceRecall: 'نمبر {n} دوبارہ {counter} پر',
+    voiceRecallCat: '{category}، نمبر {n} دوبارہ {counter} پر',
   },
   fr: {
     nowServing: 'En service',
@@ -312,7 +318,9 @@ const translations = {
     time: 'Heure',
     currentlyServing: 'Actuellement servi',
     voiceNowServing: 'Numéro {n} au {counter} s\'il vous plaît',
+    voiceNowServingCat: '{category}, numéro {n} au {counter} s\'il vous plaît',
     voiceRecall: 'Rappel du numéro {n} au {counter}',
+    voiceRecallCat: 'Rappel {category}, numéro {n} au {counter}',
   },
 }
 
