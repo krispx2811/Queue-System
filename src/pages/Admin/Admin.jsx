@@ -113,27 +113,6 @@ export default function Admin() {
   const waiting = state.tickets.filter(t => t.status === 'waiting')
   const served = state.tickets.filter(t => t.status === 'served')
 
-  // Keyboard shortcuts. hasMultiStage must be in deps — otherwise the captured
-  // value goes stale when the current ticket changes between single- and
-  // multi-stage categories, and `A` does the wrong thing.
-  useEffect(() => {
-    if (!counterId || confirmReset || transferModal || noteModal) return
-    const handler = (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
-      if (e.key === 'n' || e.key === 'N') handleCallNext()
-      if (e.key === 'r' || e.key === 'R') handleRecall()
-      if (e.key === 's' || e.key === 'S') handleSkip()
-      if (e.key === 'c' || e.key === 'C') handleComplete()
-      if (e.key === 'h' || e.key === 'H') handleHold()
-      if (e.key === 'a' || e.key === 'A') {
-        if (hasMultiStage) setSendToOpen(o => !o)
-        else handleAdvance()
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [counterId, confirmReset, transferModal, noteModal, hasMultiStage, handleCallNext, handleRecall, handleSkip, handleComplete, handleHold, handleAdvance])
-
   const handleJoin = () => {
     if (!counterId || !operatorName.trim()) return
     emitVoid('counter:register', { counterId, operatorName: operatorName.trim() })
@@ -175,6 +154,27 @@ export default function Admin() {
     if (!counterId) return
     emit('ticket:unhold', { ticketNumber, counterId })
   }, [counterId, emit])
+
+  // Keyboard shortcuts. Must come AFTER handle* are declared — referencing
+  // them in the deps array before declaration hits the temporal dead zone
+  // and throws ReferenceError, blanking the whole Admin page.
+  useEffect(() => {
+    if (!counterId || confirmReset || transferModal || noteModal) return
+    const handler = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+      if (e.key === 'n' || e.key === 'N') handleCallNext()
+      if (e.key === 'r' || e.key === 'R') handleRecall()
+      if (e.key === 's' || e.key === 'S') handleSkip()
+      if (e.key === 'c' || e.key === 'C') handleComplete()
+      if (e.key === 'h' || e.key === 'H') handleHold()
+      if (e.key === 'a' || e.key === 'A') {
+        if (hasMultiStage) setSendToOpen(o => !o)
+        else handleAdvance()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [counterId, confirmReset, transferModal, noteModal, hasMultiStage, handleCallNext, handleRecall, handleSkip, handleComplete, handleHold, handleAdvance])
 
   const handleReset = () => {
     emitVoid('admin:reset')
