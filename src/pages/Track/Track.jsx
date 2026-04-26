@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useSocket } from '../../context/SocketContext'
 import { padNumber } from '../../utils/formatters'
@@ -55,10 +55,10 @@ export default function Track() {
 
   return (
     <div className="trk">
+      {/* Standalone view — patients reach this via QR scan from their printed
+          ticket. No back-link or other nav so they can't drift onto operator
+          pages and accidentally mess things up. */}
       <div className="trk-bg" />
-      <Link to="/" className="trk-back no-print">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 3L5 8l5 5"/></svg>
-      </Link>
 
       <div className="trk-content">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>

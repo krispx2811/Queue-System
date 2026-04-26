@@ -11,6 +11,10 @@ import './Admin.css'
 
 // Admin password — must match ADMIN_PASSWORD in Landing.jsx. Client-side only.
 const ADMIN_PASSWORD = '2811'
+// Operator password — gates access to /admin so patients who scan the kiosk
+// ticket QR can't navigate here and operate counters. Admins bypass this.
+// To change: edit the constant and redeploy.
+const OPERATOR_PASSWORD = '1234'
 
 export default function Admin() {
   const { state, emit, emitVoid } = useSocket()
@@ -20,6 +24,9 @@ export default function Admin() {
   })
   const [operatorName, setOperatorName] = useState(() => sessionStorage.getItem('queueOperatorName') || '')
   const [isAdmin, setIsAdmin] = useState(() => sessionStorage.getItem('queueIsAdmin') === 'true')
+  const [isOperator, setIsOperator] = useState(() => sessionStorage.getItem('queueIsOperator') === 'true')
+  const [opPwInput, setOpPwInput] = useState('')
+  const [opPwError, setOpPwError] = useState(false)
   const [adminPwInput, setAdminPwInput] = useState('')
   const [adminPwError, setAdminPwError] = useState(false)
   const [adminToast, setAdminToast] = useState(false)
@@ -240,6 +247,50 @@ export default function Admin() {
     const tickets = await emit('admin:export', {})
     const csv = ticketsToCSV(tickets, state.categories)
     downloadCSV(csv)
+  }
+
+  const handleOperatorLogin = () => {
+    if (opPwInput === OPERATOR_PASSWORD) {
+      sessionStorage.setItem('queueIsOperator', 'true')
+      setIsOperator(true)
+      setOpPwError(false)
+      setOpPwInput('')
+    } else {
+      setOpPwError(true)
+    }
+  }
+
+  // Operator gate — first thing the user sees on /admin if they aren't
+  // already authenticated as operator or admin. Stops a patient who scanned
+  // the kiosk QR from accidentally landing on the operator panel.
+  if (!isOperator && !isAdmin) {
+    return (
+      <div className="adm">
+        <div className="adm-join">
+          <h1 className="adm-join-title">Staff Access</h1>
+          <p className="adm-join-sub">Enter the operator password to continue</p>
+          <div className="adm-join-form" style={{ marginTop: 24 }}>
+            <input
+              className="adm-input"
+              type="password"
+              placeholder="Operator password..."
+              value={opPwInput}
+              onChange={e => { setOpPwInput(e.target.value); setOpPwError(false) }}
+              onKeyDown={e => e.key === 'Enter' && handleOperatorLogin()}
+              autoFocus
+            />
+            <button className="adm-join-btn" onClick={handleOperatorLogin} disabled={!opPwInput.trim()}>
+              Continue
+            </button>
+          </div>
+          {opPwError && (
+            <p style={{ color: 'var(--red)', fontSize: 12, marginTop: 8, textAlign: 'center' }}>
+              Wrong password
+            </p>
+          )}
+        </div>
+      </div>
+    )
   }
 
   // Counter selection screen — only block when on queue tab
