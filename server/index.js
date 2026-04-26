@@ -372,7 +372,7 @@ io.on('connection', (socket) => {
     broadcast()
   })
 
-  socket.on('counter:update', ({ counterId, name, operatorName, categoryIds, stageId }, cb) => {
+  socket.on('counter:update', ({ counterId, name, operatorName, categoryIds, stageIds }, cb) => {
     const counter = state.counters.find(c => c.id === counterId)
     if (!counter) { cb?.({ error: 'not found' }); return }
     if (operatorName !== undefined) {
@@ -384,14 +384,14 @@ io.on('connection', (socket) => {
     }
     if (name !== undefined) { addAudit(state, 'counter:rename', '', `${counter.name} → ${name}`); counter.name = name }
     if (categoryIds !== undefined) counter.categoryIds = categoryIds
-    if (stageId !== undefined) counter.stageId = stageId
+    if (stageIds !== undefined) counter.stageIds = Array.isArray(stageIds) ? stageIds : (stageIds ? [stageIds] : [])
     broadcast()
     cb?.({ ok: true })
   })
 
   socket.on('counter:add', (_, cb) => {
     const maxId = Math.max(0, ...state.counters.map(c => c.id))
-    const counter = { id: maxId + 1, name: `Counter ${maxId + 1}`, operatorName: '', currentTicket: null, status: 'open', categoryIds: [], lastActiveAt: 0 }
+    const counter = { id: maxId + 1, name: `Counter ${maxId + 1}`, operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageIds: [], lastActiveAt: 0 }
     state.counters.push(counter)
     addAudit(state, 'counter:add', '', counter.name)
     broadcast()

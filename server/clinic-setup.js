@@ -6,24 +6,26 @@
 // Supabase and restart the server. Existing data will be preserved otherwise.
 // ============================================================================
 
+// Each counter handles one or more workflow stages. OPD also handles the
+// eye-drops stage because eye drops are administered at OPD in this clinic.
 export const CLINIC_COUNTERS = [
   // ---- Reception ----
-  { id: 1, name: 'Reception 1', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageId: 'reception', lastActiveAt: 0 },
-  { id: 2, name: 'Reception 2', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageId: 'reception', lastActiveAt: 0 },
-  { id: 3, name: 'Reception 3', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageId: 'reception', lastActiveAt: 0 },
+  { id: 1, name: 'Reception 1', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageIds: ['reception'], lastActiveAt: 0 },
+  { id: 2, name: 'Reception 2', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageIds: ['reception'], lastActiveAt: 0 },
+  { id: 3, name: 'Reception 3', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageIds: ['reception'], lastActiveAt: 0 },
 
-  // ---- OPD (Outpatient Department) ----
-  { id: 4, name: 'OPD A', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageId: 'opd', lastActiveAt: 0 },
+  // ---- OPD (Outpatient Department) — also administers eye drops ----
+  { id: 4, name: 'OPD A', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageIds: ['opd', 'eye-drops'], lastActiveAt: 0 },
 
   // ---- Optometrist Rooms ----
-  { id: 5, name: 'Optometrist B1', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageId: 'optometrist', lastActiveAt: 0 },
-  { id: 6, name: 'Optometrist B2', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageId: 'optometrist', lastActiveAt: 0 },
+  { id: 5, name: 'Optometrist B1', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageIds: ['optometrist'], lastActiveAt: 0 },
+  { id: 6, name: 'Optometrist B2', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageIds: ['optometrist'], lastActiveAt: 0 },
 
   // ---- Doctor Rooms ----
-  { id: 7, name: 'Doctor D1', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageId: 'doctor', lastActiveAt: 0 },
-  { id: 8, name: 'Doctor D2', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageId: 'doctor', lastActiveAt: 0 },
-  { id: 9, name: 'Doctor D3', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageId: 'doctor', lastActiveAt: 0 },
-  { id: 10, name: 'Doctor D4', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageId: 'doctor', lastActiveAt: 0 },
+  { id: 7, name: 'Doctor D1', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageIds: ['doctor'], lastActiveAt: 0 },
+  { id: 8, name: 'Doctor D2', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageIds: ['doctor'], lastActiveAt: 0 },
+  { id: 9, name: 'Doctor D3', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageIds: ['doctor'], lastActiveAt: 0 },
+  { id: 10, name: 'Doctor D4', operatorName: '', currentTicket: null, status: 'open', categoryIds: [], stageIds: ['doctor'], lastActiveAt: 0 },
 ]
 
 // Common stages used across all visit types — operator picks the path at each step

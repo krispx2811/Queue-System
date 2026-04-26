@@ -1294,22 +1294,31 @@ export default function Admin() {
                     })
                   })
                   if (allStages.length === 0) return null
+                  const counterStageIds = counter.stageIds || []
                   return (
                     <div className="sg-field">
                       <label className="sg-label">Stage Assignment</label>
-                      <p className="sg-hint">Restrict this counter to one stage (empty = all stages)</p>
+                      <p className="sg-hint">Pick which stages this counter handles (empty = all stages). Click multiple to handle several at once.</p>
                       <div className="adm-set-options">
-                        <button className={`adm-set-opt ${!counter.stageId ? 'adm-set-opt--active' : ''}`}
-                          onClick={() => emitVoid('counter:update', { counterId, stageId: null })}>
+                        <button className={`adm-set-opt ${counterStageIds.length === 0 ? 'adm-set-opt--active' : ''}`}
+                          onClick={() => emitVoid('counter:update', { counterId, stageIds: [] })}>
                           All stages
                         </button>
-                        {allStages.map(stage => (
-                          <button key={stage.id} className={`adm-set-opt ${counter.stageId === stage.id ? 'adm-set-opt--active' : ''}`}
-                            style={counter.stageId === stage.id ? { borderColor: stage.color, color: stage.color } : {}}
-                            onClick={() => emitVoid('counter:update', { counterId, stageId: stage.id })}>
-                            {stage.name}
-                          </button>
-                        ))}
+                        {allStages.map(stage => {
+                          const active = counterStageIds.includes(stage.id)
+                          return (
+                            <button key={stage.id} className={`adm-set-opt ${active ? 'adm-set-opt--active' : ''}`}
+                              style={active ? { borderColor: stage.color, color: stage.color } : {}}
+                              onClick={() => {
+                                const next = active
+                                  ? counterStageIds.filter(id => id !== stage.id)
+                                  : [...counterStageIds, stage.id]
+                                emitVoid('counter:update', { counterId, stageIds: next })
+                              }}>
+                              {stage.name}
+                            </button>
+                          )
+                        })}
                       </div>
                     </div>
                   )
@@ -1405,15 +1414,20 @@ export default function Admin() {
                 <p className="adm-transfer-label">Send to another room (emergency, switch operator):</p>
                 <div className="adm-transfer-rooms">
                   {state.counters.filter(c => c.id !== counterId && c.status === 'open').map(c => {
-                    const stage = c.stageId
-                      ? state.categories.find(cat => cat.stages?.find(s => s.id === c.stageId))?.stages?.find(s => s.id === c.stageId)
-                      : null
+                    // Resolve all stage names this counter handles, joined with ·
+                    const stageNames = (c.stageIds || []).map(sid => {
+                      for (const cat of state.categories) {
+                        const s = cat.stages?.find(st => st.id === sid)
+                        if (s) return s.name
+                      }
+                      return null
+                    }).filter(Boolean).join(' · ')
                     return (
                       <button key={c.id} className="adm-transfer-room"
                         onClick={() => handleTransferToRoom(c.id)}>
                         <span className="adm-transfer-room-name">{c.name}</span>
                         {c.operatorName && <span className="adm-transfer-room-op">{c.operatorName}</span>}
-                        {stage && <span className="adm-transfer-room-stage">{stage.name}</span>}
+                        {stageNames && <span className="adm-transfer-room-stage">{stageNames}</span>}
                       </button>
                     )
                   })}

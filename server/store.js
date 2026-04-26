@@ -111,15 +111,21 @@ function makeDefault() {
 }
 
 // ---- Mappers between camelCase (app) and snake_case (DB) ----
+// stage_id was originally a single TEXT column. To support a counter handling
+// multiple stages (e.g. OPD also doing eye drops) we now store comma-separated
+// stage IDs in the same column — no schema change required, and old single-
+// value data round-trips cleanly.
 const dbCounter = c => ({
   id: c.id, name: c.name, operator_name: c.operatorName || '',
   current_ticket: c.currentTicket, status: c.status, category_ids: c.categoryIds || [],
-  stage_id: c.stageId || null, last_active_at: c.lastActiveAt || 0,
+  stage_id: (c.stageIds || []).filter(Boolean).join(',') || null,
+  last_active_at: c.lastActiveAt || 0,
 })
 const appCounter = r => ({
   id: r.id, name: r.name, operatorName: r.operator_name,
   currentTicket: r.current_ticket, status: r.status, categoryIds: r.category_ids || [],
-  stageId: r.stage_id, lastActiveAt: r.last_active_at,
+  stageIds: (r.stage_id || '').split(',').map(s => s.trim()).filter(Boolean),
+  lastActiveAt: r.last_active_at,
 })
 
 const dbCategory = c => ({
@@ -386,11 +392,12 @@ export function callNext(state, counterId) {
       // Forced-to-this-counter takes priority and bypasses category/stage filters
       if (t.forcedCounterId) return t.forcedCounterId === counterId
       if (!validCategories.includes(t.categoryId)) return false
-      // Stage filtering: if counter has a stageId, only serve tickets at that stage
-      if (counter.stageId) {
+      // Stage filtering: if counter has stageIds, only serve tickets whose
+      // current stage is one of those.
+      if (counter.stageIds && counter.stageIds.length > 0) {
         const cat = state.categories.find(c => c.id === t.categoryId)
         const ticketStage = cat?.stages?.[t.currentStage || 0]
-        if (!ticketStage || ticketStage.id !== counter.stageId) return false
+        if (!ticketStage || !counter.stageIds.includes(ticketStage.id)) return false
       }
       return true
     })
@@ -508,12 +515,18 @@ export function transferToRoom(state, ticketNumber, toCounterId, fromCounterId) 
     fromCounter.currentTicket = null
   }
 
-  // Align ticket stage with destination counter's stage (if it has one)
-  if (dest.stageId) {
+  // Align ticket stage with destination counter's stage (if it has any).
+  // When the counter handles multiple stages, prefer the ticket's current
+  // stage if it's already covered; otherwise jump to the first stage the
+  // destination counter handles.
+  if (dest.stageIds && dest.stageIds.length > 0) {
     const cat = state.categories.find(c => c.id === ticket.categoryId)
     const stages = cat?.stages || []
-    const stageIdx = stages.findIndex(s => s.id === dest.stageId)
-    if (stageIdx !== -1) ticket.currentStage = stageIdx
+    const currentStageObj = stages[ticket.currentStage || 0]
+    if (!currentStageObj || !dest.stageIds.includes(currentStageObj.id)) {
+      const stageIdx = stages.findIndex(s => dest.stageIds.includes(s.id))
+      if (stageIdx !== -1) ticket.currentStage = stageIdx
+    }
   }
 
   // Send to waiting; lock to the destination counter
@@ -714,8 +727,9 @@ export function findBestCounter(state, categoryId, stageId = null) {
   const eligible = state.counters.filter(c => {
     if (c.status === 'closed' || !c.operatorName) return false
     if (c.categoryIds.length > 0 && !c.categoryIds.includes(categoryId)) return false
-    // If we're routing for a specific stage, counter must serve that stage (or have no stageId restriction)
-    if (stageId && c.stageId && c.stageId !== stageId) return false
+    // If we're routing for a specific stage, counter must serve that stage
+    // (counters with no stage restriction match any).
+    if (stageId && c.stageIds && c.stageIds.length > 0 && !c.stageIds.includes(stageId)) return false
     return true
   })
   if (eligible.length === 0) return null
