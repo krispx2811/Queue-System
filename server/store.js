@@ -87,7 +87,7 @@ function makeDefault() {
     activeBranch: 'main',
     webhooks: [],
     settings: {
-      soundTheme: 'default',
+      soundTheme: 'doorbell',
       languages: ['ar', 'en'],
       uiLang: 'en',
       volume: 0.8,
@@ -137,6 +137,7 @@ const dbTicket = t => ({
   status: t.status, counter_id: t.counterId, created_at: t.createdAt,
   called_at: t.calledAt, completed_at: t.completedAt, notes: t.notes || '',
   transfer_history: t.transferHistory || [], held_at: t.heldAt, held_by_counter_id: t.heldByCounterId,
+  forced_counter_id: t.forcedCounterId || null,
 })
 const appTicket = r => ({
   number: r.number, displayNumber: r.display_number, categoryId: r.category_id,
@@ -144,6 +145,7 @@ const appTicket = r => ({
   status: r.status, counterId: r.counter_id, createdAt: r.created_at,
   calledAt: r.called_at, completedAt: r.completed_at, notes: r.notes,
   transferHistory: r.transfer_history || [], heldAt: r.held_at, heldByCounterId: r.held_by_counter_id,
+  forcedCounterId: r.forced_counter_id || null,
 })
 
 const dbAudit = a => ({ action: a.action, actor: a.actor || '', details: a.details || '', ts: a.timestamp })

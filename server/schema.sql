@@ -61,8 +61,12 @@ CREATE TABLE IF NOT EXISTS tickets (
   notes TEXT DEFAULT '',
   transfer_history JSONB DEFAULT '[]'::jsonb,
   held_at BIGINT,
-  held_by_counter_id INTEGER
+  held_by_counter_id INTEGER,
+  forced_counter_id INTEGER
 );
+
+-- Backfill column for older deployments
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS forced_counter_id INTEGER;
 
 CREATE INDEX IF NOT EXISTS tickets_status_idx ON tickets(status);
 CREATE INDEX IF NOT EXISTS tickets_category_idx ON tickets(category_id);

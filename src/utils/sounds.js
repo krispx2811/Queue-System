@@ -1,7 +1,15 @@
 let audioCtx = null
+let masterGain = null
 
 function ctx() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+    // Master gain — playChime sets this from the user's volume setting so the
+    // slider actually changes loudness instead of being purely cosmetic.
+    masterGain = audioCtx.createGain()
+    masterGain.gain.value = 1
+    masterGain.connect(audioCtx.destination)
+  }
   return audioCtx
 }
 
@@ -18,6 +26,8 @@ function createReverb(c, duration = 1.5) {
     }
   }
   conv.buffer = buf
+  // Connect reverb output to the master so the wet signal is actually audible.
+  conv.connect(masterGain)
   return conv
 }
 
@@ -36,7 +46,7 @@ function bell(c, freq, time, dur, vol, reverb) {
     g.gain.exponentialRampToValueAtTime(0.0001, time + dur * (1 - i * 0.15))
     o.connect(g)
     if (reverb) g.connect(reverb)
-    g.connect(c.destination)
+    g.connect(masterGain)
     o.start(time)
     o.stop(time + dur)
     last = o
@@ -54,7 +64,7 @@ function tone(c, freq, time, dur, type, vol) {
   g.gain.setValueAtTime(vol, time + dur * 0.4)
   g.gain.exponentialRampToValueAtTime(0.0001, time + dur)
   o.connect(g)
-  g.connect(c.destination)
+  g.connect(masterGain)
   o.start(time)
   o.stop(time + dur)
   return o
@@ -134,7 +144,7 @@ const themes = {
       g.gain.setValueAtTime(vol, time)
       g.gain.exponentialRampToValueAtTime(0.0001, time + 0.4)
       o.connect(g)
-      g.connect(c.destination)
+      g.connect(masterGain)
       // Add sub-octave for warmth
       const o2 = c.createOscillator()
       o2.type = 'sine'
@@ -143,7 +153,7 @@ const themes = {
       g2.gain.setValueAtTime(vol * 0.5, time)
       g2.gain.exponentialRampToValueAtTime(0.0001, time + 0.6)
       o2.connect(g2)
-      g2.connect(c.destination)
+      g2.connect(masterGain)
       o.start(time); o.stop(time + 0.5)
       o2.start(time); o2.stop(time + 0.7)
       return o
@@ -166,7 +176,7 @@ const themes = {
       g.gain.exponentialRampToValueAtTime(0.0001, time + 1.2)
       o.connect(g)
       g.connect(rev)
-      g.connect(c.destination)
+      g.connect(masterGain)
       o.start(time)
       o.stop(time + 1.3)
       return o
@@ -202,6 +212,11 @@ export function playChime(theme = 'doorbell', volume = 0.8) {
   return new Promise(resolve => {
     try {
       const c = ctx()
+      // Browsers suspend AudioContext after the tab is backgrounded; resume so
+      // chimes don't silently fail when the display tab regains focus.
+      if (c.state === 'suspended') c.resume().catch(() => {})
+      // Apply volume via the master gain; theme functions don't accept volume.
+      masterGain.gain.setValueAtTime(Math.max(0, Math.min(1, volume)), c.currentTime)
       const themeFunc = themes[theme] || themes.doorbell
       const osc = themeFunc(c)
       if (osc) osc.onended = resolve

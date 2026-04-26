@@ -49,6 +49,7 @@ export default function Admin() {
   const handleAdminLogin = async () => {
     const ok = await emit('auth:check', { password: adminPwInput, role: 'admin' })
     if (ok) {
+      sessionStorage.setItem('queueAdminPw', adminPwInput)
       setIsAdmin(true); setAdminPwError(false); setAdminPwInput(''); setTab('queue')
       setAdminToast(true); setTimeout(() => setAdminToast(false), 2500)
     } else setAdminPwError(true)
@@ -74,6 +75,9 @@ export default function Admin() {
   const [newCatColor, setNewCatColor] = useState('#4f8ff7')
   const [webhookUrl, setWebhookUrl] = useState('')
   const [monthlyData, setMonthlyData] = useState(null)
+  const [pwAdminInput, setPwAdminInput] = useState('')
+  const [pwOperatorInput, setPwOperatorInput] = useState('')
+  const [newBranchName, setNewBranchName] = useState('')
 
   const heldTickets = state.tickets.filter(t => t.status === 'held')
 
@@ -93,7 +97,9 @@ export default function Admin() {
   const waiting = state.tickets.filter(t => t.status === 'waiting')
   const served = state.tickets.filter(t => t.status === 'served')
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts. hasMultiStage must be in deps — otherwise the captured
+  // value goes stale when the current ticket changes between single- and
+  // multi-stage categories, and `A` does the wrong thing.
   useEffect(() => {
     if (!counterId || confirmReset || transferModal || noteModal) return
     const handler = (e) => {
@@ -110,7 +116,7 @@ export default function Admin() {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [counterId, confirmReset, transferModal, noteModal])
+  }, [counterId, confirmReset, transferModal, noteModal, hasMultiStage, handleCallNext, handleRecall, handleSkip, handleComplete, handleHold, handleAdvance])
 
   const handleJoin = () => {
     if (!counterId || !operatorName.trim()) return
@@ -342,21 +348,6 @@ export default function Admin() {
 
       {/* Main content */}
       <div className="adm-shell">
-      <nav className="adm-tabs">
-        {(isAdmin
-          ? ['queue', 'analytics', 'announce', 'categories', 'audit', 'settings']
-          : ['queue']
-        ).map(t => (
-          <button
-            key={t}
-            className={`adm-tab ${tab === t ? 'adm-tab--active' : ''}`}
-            onClick={() => { setTab(t); if (t === 'analytics') loadAnalytics() }}
-          >
-            {t.charAt(0).toUpperCase() + t.slice(1)}
-          </button>
-        ))}
-      </nav>
-
       <div className="adm-body">
         {/* Admin login prompt */}
         {tab === 'admin-login' && (
@@ -674,6 +665,8 @@ export default function Admin() {
                   <button className="adm-act" onClick={() => {
                     const content = document.querySelector('.adm-analytics')
                     if (!content) return
+                    // Escape user-controlled strings (operator/category names) before inlining into HTML.
+                    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
                     const win = window.open('', '_blank')
                     win.document.write(`<html><head><title>Queue Report</title><style>
                       body{font-family:system-ui;padding:40px;color:#333}
@@ -685,16 +678,16 @@ export default function Admin() {
                       .row{padding:6px 0;border-bottom:1px solid #eee;display:flex;justify-content:space-between}
                       @media print{body{padding:20px}}
                     </style></head><body>
-                    <h2>Queue Report — ${new Date().toLocaleDateString()}</h2>
+                    <h2>Queue Report — ${esc(new Date().toLocaleDateString())}</h2>
                     <div class="card"><span class="val">${analytics.totalServed}</span><span class="lbl">Served</span></div>
                     <div class="card"><span class="val">${analytics.totalWaiting}</span><span class="lbl">Waiting</span></div>
                     <div class="card"><span class="val">${analytics.avgWaitTime}s</span><span class="lbl">Avg Wait</span></div>
                     <div class="card"><span class="val">${analytics.avgServiceTime}s</span><span class="lbl">Avg Service</span></div>
                     ${advAnalytics ? `
                     <h3>Operator Performance</h3>
-                    ${Object.entries(advAnalytics.operatorStats).map(([n,s]) => `<div class="row"><span>${n} (${s.counterName})</span><span>${s.totalServed} served · ${s.avgServiceTime}s avg</span></div>`).join('')}
+                    ${Object.entries(advAnalytics.operatorStats).map(([n,s]) => `<div class="row"><span>${esc(n)} (${esc(s.counterName)})</span><span>${s.totalServed} served · ${s.avgServiceTime}s avg</span></div>`).join('')}
                     <h3>Service by Category</h3>
-                    ${Object.values(advAnalytics.categoryServiceTimes).map(c => `<div class="row"><span>${c.name}</span><span>${c.totalServed} served · ${c.avgServiceTime}s avg</span></div>`).join('')}
+                    ${Object.values(advAnalytics.categoryServiceTimes).map(c => `<div class="row"><span>${esc(c.name)}</span><span>${c.totalServed} served · ${c.avgServiceTime}s avg</span></div>`).join('')}
                     ` : ''}
                     <script>setTimeout(()=>window.print(),500)</script>
                     </body></html>`)
@@ -839,10 +832,10 @@ export default function Admin() {
                 ))}
               </div>
               <div className="adm-announce-form" style={{ marginTop: 8 }}>
-                <input className="adm-input" placeholder="Branch name" id="new-branch" />
+                <input className="adm-input" placeholder="Branch name"
+                  value={newBranchName} onChange={e => setNewBranchName(e.target.value)} />
                 <button className="adm-join-btn" onClick={() => {
-                  const input = document.getElementById('new-branch')
-                  if (input?.value.trim()) { emit('branch:add', { name: input.value.trim() }); input.value = '' }
+                  if (newBranchName.trim()) { emit('branch:add', { name: newBranchName.trim() }); setNewBranchName('') }
                 }}>Add</button>
               </div>
             </div>
@@ -919,17 +912,24 @@ export default function Admin() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <span style={{ fontSize: 12, width: 70, color: 'var(--gray-2)' }}>Admin</span>
-                  <input className="adm-input" type="password" placeholder="Admin password" id="pw-admin" />
+                  <input className="adm-input" type="password" placeholder="Admin password (leave blank to keep)"
+                    value={pwAdminInput} onChange={e => setPwAdminInput(e.target.value)} />
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <span style={{ fontSize: 12, width: 70, color: 'var(--gray-2)' }}>Operator</span>
-                  <input className="adm-input" type="password" placeholder="Operator password" id="pw-operator" />
+                  <input className="adm-input" type="password" placeholder="Operator password (leave blank to keep)"
+                    value={pwOperatorInput} onChange={e => setPwOperatorInput(e.target.value)} />
                 </div>
-                <button className="adm-act" style={{ width: 'fit-content' }} onClick={() => {
-                  emitVoid('auth:setPasswords', {
-                    adminPassword: document.getElementById('pw-admin')?.value || '',
-                    operatorPassword: document.getElementById('pw-operator')?.value || '',
-                  })
+                <button className="adm-act" style={{ width: 'fit-content' }} onClick={async () => {
+                  // Only send fields that were actually edited so blank inputs don't wipe the other.
+                  const updates = {}
+                  if (pwAdminInput) updates.adminPassword = pwAdminInput
+                  if (pwOperatorInput) updates.operatorPassword = pwOperatorInput
+                  if (Object.keys(updates).length === 0) return
+                  await emit('auth:setPasswords', updates)
+                  // Keep the new admin password in session so reconnects re-auth.
+                  if (updates.adminPassword) sessionStorage.setItem('queueAdminPw', updates.adminPassword)
+                  setPwAdminInput(''); setPwOperatorInput('')
                 }}>Save Passwords</button>
               </div>
             </div>

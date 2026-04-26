@@ -23,7 +23,9 @@ export default function Kiosk() {
 
   useEffect(() => {
     if (!ticket) return
-    const timer = setTimeout(() => setTicket(null), 20000)
+    // 60s gives the customer time to print, take the ticket, and leave the kiosk
+    // before it auto-resets for the next user.
+    const timer = setTimeout(() => setTicket(null), 60000)
     return () => clearTimeout(timer)
   }, [ticket])
 

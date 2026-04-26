@@ -10,10 +10,15 @@ export default function ThemeApplier() {
     document.documentElement.setAttribute('data-theme', theme || 'light')
     if (accentColor) {
       document.documentElement.style.setProperty('--blue', accentColor)
-      const r = parseInt(accentColor.slice(1, 3), 16)
-      const g = parseInt(accentColor.slice(3, 5), 16)
-      const b = parseInt(accentColor.slice(5, 7), 16)
-      document.documentElement.style.setProperty('--blue-dim', `rgba(${r}, ${g}, ${b}, 0.12)`)
+      // Expand short hex (#abc → #aabbcc) and only set --blue-dim if we got a valid hex.
+      let hex = accentColor.replace('#', '')
+      if (hex.length === 3) hex = hex.split('').map(ch => ch + ch).join('')
+      if (/^[0-9a-f]{6}$/i.test(hex)) {
+        const r = parseInt(hex.slice(0, 2), 16)
+        const g = parseInt(hex.slice(2, 4), 16)
+        const b = parseInt(hex.slice(4, 6), 16)
+        document.documentElement.style.setProperty('--blue-dim', `rgba(${r}, ${g}, ${b}, 0.12)`)
+      }
     }
   }, [state.settings.theme, state.settings.accentColor])
 

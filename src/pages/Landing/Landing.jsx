@@ -52,7 +52,7 @@ const ADMIN_GROUPS = [
 ]
 
 export default function Landing() {
-  const { state, emit } = useSocket()
+  const { state, emit, emitVoid } = useSocket()
   const waiting = state.tickets.filter(t => t.status === 'waiting').length
   const served = state.tickets.filter(t => t.status === 'served').length
   const activeCounters = state.counters.filter(c => c.status === 'open').length
@@ -64,10 +64,13 @@ export default function Landing() {
 
   const handleUnlock = async () => {
     if (!pwInput.trim()) return
-    const ok = await emit('auth:check', { password: pwInput.trim(), role: 'admin' })
+    const pw = pwInput.trim()
+    const ok = await emit('auth:check', { password: pw, role: 'admin' })
     if (ok) {
       setIsAdmin(true)
       sessionStorage.setItem('queueIsAdmin', 'true')
+      // Persist password so reconnects can re-establish server-side admin flag.
+      sessionStorage.setItem('queueAdminPw', pw)
       setPwModal(false)
       setPwInput('')
       setPwError(false)
@@ -78,7 +81,9 @@ export default function Landing() {
 
   const handleLock = () => {
     setIsAdmin(false)
-    sessionStorage.setItem('queueIsAdmin', 'false')
+    sessionStorage.removeItem('queueIsAdmin')
+    sessionStorage.removeItem('queueAdminPw')
+    emitVoid('auth:logout')
   }
 
   return (

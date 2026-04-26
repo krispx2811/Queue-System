@@ -8,6 +8,7 @@ import './Dashboard.css'
 export default function Dashboard() {
   const { state, emit, emitVoid } = useSocket()
   const [clock, setClock] = useState(new Date())
+  const isAdmin = sessionStorage.getItem('queueIsAdmin') === 'true'
 
   useEffect(() => {
     const i = setInterval(() => setClock(new Date()), 1000)
@@ -60,43 +61,45 @@ export default function Dashboard() {
                       <span className="dash-counter-idle">—</span>
                     )}
                   </div>
-                  <div className="dash-counter-actions">
-                    <button
-                      className="dash-btn dash-btn--primary"
-                      onClick={() => emit('ticket:call', { counterId: counter.id })}
-                      disabled={counter.status === 'closed'}
-                    >
-                      Next
-                    </button>
-                    <button
-                      className="dash-btn"
-                      onClick={() => emit('ticket:recall', { counterId: counter.id })}
-                      disabled={!ticket}
-                    >
-                      Recall
-                    </button>
-                    <button
-                      className="dash-btn"
-                      onClick={() => emit('ticket:complete', { counterId: counter.id })}
-                      disabled={!ticket}
-                    >
-                      Done
-                    </button>
-                    <button
-                      className="dash-btn"
-                      onClick={() => emit('ticket:skip', { counterId: counter.id })}
-                      disabled={!ticket}
-                    >
-                      Skip
-                    </button>
-                    <button
-                      className="dash-btn"
-                      onClick={() => emit('ticket:hold', { counterId: counter.id })}
-                      disabled={!ticket}
-                    >
-                      Hold
-                    </button>
-                  </div>
+                  {isAdmin && (
+                    <div className="dash-counter-actions">
+                      <button
+                        className="dash-btn dash-btn--primary"
+                        onClick={() => emit('ticket:call', { counterId: counter.id })}
+                        disabled={counter.status === 'closed'}
+                      >
+                        Next
+                      </button>
+                      <button
+                        className="dash-btn"
+                        onClick={() => emit('ticket:recall', { counterId: counter.id })}
+                        disabled={!ticket}
+                      >
+                        Recall
+                      </button>
+                      <button
+                        className="dash-btn"
+                        onClick={() => emit('ticket:complete', { counterId: counter.id })}
+                        disabled={!ticket}
+                      >
+                        Done
+                      </button>
+                      <button
+                        className="dash-btn"
+                        onClick={() => emit('ticket:skip', { counterId: counter.id })}
+                        disabled={!ticket}
+                      >
+                        Skip
+                      </button>
+                      <button
+                        className="dash-btn"
+                        onClick={() => emit('ticket:hold', { counterId: counter.id })}
+                        disabled={!ticket}
+                      >
+                        Hold
+                      </button>
+                    </div>
+                  )}
                 </div>
               )
             })}

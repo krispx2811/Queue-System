@@ -99,12 +99,32 @@ export function SocketProvider({ children }) {
     socket.on('state:sync', (data) => setState(data))
     socket.on('ticket:announced', (data) => setAnnounced(data))
 
+    // Re-auth automatically on connect / reconnect so the server-side
+    // socket.data.isAdmin flag matches the client's saved login.
+    socket.on('connect', () => {
+      const pw = sessionStorage.getItem('queueAdminPw')
+      if (pw) socket.emit('auth:check', { password: pw, role: 'admin' })
+    })
+
     return () => socket.disconnect()
   }, [])
 
-  const emit = (event, data) => {
+  const emit = (event, data, timeoutMs = 5000) => {
     return new Promise((resolve) => {
-      socketRef.current?.emit(event, data, (result) => resolve(result))
+      const sock = socketRef.current
+      if (!sock) { resolve(null); return }
+      let settled = false
+      const timer = setTimeout(() => {
+        if (settled) return
+        settled = true
+        resolve(null)
+      }, timeoutMs)
+      sock.emit(event, data, (result) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        resolve(result)
+      })
     })
   }
 
