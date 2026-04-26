@@ -404,14 +404,20 @@ export function translateRoom(name, lang) {
     result = result.replace(regex, terms[key])
   }
 
-  // For Arabic, replace English letter suffixes (D1, B2, A) with spelled-out
-  // versions so the voice doesn't switch back to English to say them.
-  // Examples: "الطبيب D1" → "الطبيب رقم 1", "اختصاصي النظر B1" → "اختصاصي النظر 1"
+  // For Arabic, transliterate English letter suffixes (D1, B2, A) into the
+  // closest Arabic letter so the multilingual TTS voice doesn't drop them or
+  // switch back to English. "Optometrist B1" → "اختصاصي النظر ب ١".
   if (lang === 'ar') {
-    // "الطبيب D2" → "الطبيب رقم 2"  (drop letter, add رقم)
-    result = result.replace(/\s+[A-Z](\d+)\b/g, ' رقم $1')
-    // "OPD A" / "الاستقبال A" → just drop the lone letter
-    result = result.replace(/\s+[A-Z]\b/g, '')
+    const AR_LETTER = {
+      A: 'أ', B: 'ب', C: 'ك', D: 'د', E: 'إي', F: 'ف', G: 'ج', H: 'هـ',
+      I: 'آي', J: 'ج', K: 'ك', L: 'ل', M: 'م', N: 'ن', O: 'أو', P: 'پ',
+      Q: 'ق', R: 'ر', S: 'س', T: 'ت', U: 'يو', V: 'ڤ', W: 'و', X: 'إكس',
+      Y: 'ي', Z: 'ز',
+    }
+    // "الطبيب D2" → "الطبيب د ٢", "اختصاصي النظر B1" → "اختصاصي النظر ب ١"
+    result = result.replace(/\s+([A-Z])(\d+)\b/g, (_, letter, num) => ` ${AR_LETTER[letter] || letter} ${num}`)
+    // "OPD A" / "الاستقبال A" → "العيادة الخارجية أ"
+    result = result.replace(/\s+([A-Z])\b/g, (_, letter) => ` ${AR_LETTER[letter] || letter}`)
     // Convert digits to Arabic-Indic numerals so the voice says them naturally
     const arDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩']
     result = result.replace(/\d/g, d => arDigits[d])
