@@ -14,7 +14,7 @@ const ADMIN_PASSWORD = '2811'
 // Operator password — gates access to /admin so patients who scan the kiosk
 // ticket QR can't navigate here and operate counters. Admins bypass this.
 // To change: edit the constant and redeploy.
-const OPERATOR_PASSWORD = '1234'
+const OPERATOR_PASSWORD = 'FEC@1'
 
 export default function Admin() {
   const { state, emit, emitVoid } = useSocket()
