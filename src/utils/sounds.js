@@ -13,6 +13,36 @@ function ctx() {
   return audioCtx
 }
 
+// Browsers (especially Chrome/Safari) don't allow audio playback until the
+// user has interacted with the page. The Display tab is often opened standalone
+// so first call to playChime can fall on a suspended context — silent. This
+// hooks a one-time gesture listener that resumes the context and warms the
+// audio pipeline; call once when Display mounts.
+let primed = false
+export function primeAudio() {
+  if (primed) return
+  const onGesture = () => {
+    primed = true
+    try {
+      const c = ctx()
+      if (c.state === 'suspended') c.resume().catch(() => {})
+    } catch {}
+    // Also force an HTMLAudioElement to play a silent buffer so subsequent
+    // <Audio> playback (used by the ElevenLabs/Google paths) doesn't get
+    // blocked by the same autoplay policy.
+    try {
+      const a = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA')
+      a.play().catch(() => {})
+    } catch {}
+    window.removeEventListener('click', onGesture, true)
+    window.removeEventListener('keydown', onGesture, true)
+    window.removeEventListener('touchstart', onGesture, true)
+  }
+  window.addEventListener('click', onGesture, true)
+  window.addEventListener('keydown', onGesture, true)
+  window.addEventListener('touchstart', onGesture, true)
+}
+
 // Generate high-quality sounds using Web Audio with convolution reverb for realism
 function createReverb(c, duration = 1.5) {
   const conv = c.createConvolver()

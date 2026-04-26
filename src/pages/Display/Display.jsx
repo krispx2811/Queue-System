@@ -5,6 +5,7 @@ import NumberDisplay from '../../components/NumberDisplay'
 import VoiceAnnouncer from '../../components/VoiceAnnouncer'
 import { padNumber, formatTicket } from '../../utils/formatters'
 import { t } from '../../utils/i18n'
+import { primeAudio } from '../../utils/sounds'
 import './Display.css'
 
 const WMO_ICONS = {
@@ -69,6 +70,7 @@ export default function Display() {
   const [isFs, setIsFs] = useState(false)
   const [signageMode, setSignageMode] = useState(false)
   const [slideIdx, setSlideIdx] = useState(0)
+  const [audioLocked, setAudioLocked] = useState(false)
   const weather = useWeather()
   const lang = state.settings.uiLang || 'en'
   const slides = state.settings.mediaSlides || []
@@ -77,6 +79,28 @@ export default function Display() {
   useEffect(() => {
     const i = setInterval(() => setClock(new Date()), 1000)
     return () => clearInterval(i)
+  }, [])
+
+  // Browsers block audio until the user has interacted with the tab. Show a
+  // one-shot "click to enable sound" banner so the operator knows why the
+  // first call was silent — clicking primes the audio pipeline so subsequent
+  // ticket announcements actually play.
+  useEffect(() => {
+    primeAudio()
+    try {
+      const probe = new (window.AudioContext || window.webkitAudioContext)()
+      if (probe.state === 'suspended') setAudioLocked(true)
+      probe.close().catch(() => {})
+    } catch {}
+    const unlock = () => setAudioLocked(false)
+    window.addEventListener('click', unlock, { once: true })
+    window.addEventListener('keydown', unlock, { once: true })
+    window.addEventListener('touchstart', unlock, { once: true })
+    return () => {
+      window.removeEventListener('click', unlock)
+      window.removeEventListener('keydown', unlock)
+      window.removeEventListener('touchstart', unlock)
+    }
   }, [])
 
   // Signage rotation: alternate between queue and slides
@@ -143,6 +167,31 @@ export default function Display() {
     <div className="dsp">
       <VoiceAnnouncer />
       <div className="dsp-bg" />
+
+      {audioLocked && (
+        <div
+          onClick={() => setAudioLocked(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(0,0,0,0.55)', cursor: 'pointer',
+          }}
+        >
+          <div style={{
+            background: 'var(--bg-raised)', padding: '32px 40px', borderRadius: 16,
+            border: '1px solid var(--border)', textAlign: 'center', maxWidth: 380,
+          }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>🔊</div>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--white)', marginBottom: 8 }}>
+              Click to enable sound
+            </h2>
+            <p style={{ fontSize: 13, color: 'var(--gray-2)', lineHeight: 1.5 }}>
+              Browsers block audio until you interact with the page. Click anywhere
+              to start hearing chime and voice announcements.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Logo */}
       {state.settings.logoUrl && (
