@@ -46,7 +46,8 @@ export default function Admin() {
     else sessionStorage.removeItem('queueOperatorName')
   }, [operatorName])
   useEffect(() => {
-    sessionStorage.setItem('queueIsAdmin', isAdmin)
+    // Explicit string to avoid sessionStorage's implicit toString
+    sessionStorage.setItem('queueIsAdmin', isAdmin ? 'true' : 'false')
   }, [isAdmin])
 
   const handleAdminLogin = () => {
@@ -232,6 +233,19 @@ export default function Admin() {
       <div className="adm">
         <div className="adm-join">
           <Link to="/" className="adm-back-link">← Back</Link>
+          {!isAdmin && (
+            <button
+              onClick={() => setTab('admin-login')}
+              style={{
+                position: 'absolute', top: 14, right: 14,
+                background: 'var(--blue-dim)', color: 'var(--blue)',
+                border: '1px solid var(--border)', padding: '6px 12px',
+                borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              Unlock Admin
+            </button>
+          )}
           <h1 className="adm-join-title">Select Counter</h1>
           <p className="adm-join-sub">Choose your counter and enter your name</p>
 
@@ -321,6 +335,27 @@ export default function Admin() {
         </div>
 
         <div className="adm-sidenav-foot">
+          {!isAdmin && (
+            <button
+              className="adm-leave"
+              onClick={() => setTab('admin-login')}
+              style={{ background: 'var(--blue-dim)', color: 'var(--blue)' }}
+            >
+              Unlock Admin
+            </button>
+          )}
+          {isAdmin && (
+            <button
+              className="adm-leave"
+              onClick={() => {
+                setIsAdmin(false)
+                sessionStorage.removeItem('queueIsAdmin')
+                setTab('queue')
+              }}
+            >
+              Lock Admin
+            </button>
+          )}
           {counter && (
             <button
               className={`adm-toggle ${counter.status === 'closed' ? 'adm-toggle--off' : ''}`}
