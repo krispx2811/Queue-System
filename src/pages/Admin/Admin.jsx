@@ -61,9 +61,24 @@ export default function Admin() {
   const initialTab = searchParams.get('tab') || 'queue'
   const sectionParam = searchParams.get('section') || ''
   const sectionDefaults = { categories: 'services', audit: 'log', settings: 'appearance' }
-  const section = sectionParam || sectionDefaults[initialTab] || ''
-  const showSection = (id) => section === id
+  // Each top-level tab has multiple sub-sections; track which sub-sections
+  // belong to which tab so a stale URL section param doesn't bleed into the
+  // wrong tab and silently hide all content (which is what was making the
+  // page blank when clicking a sidebar tab item).
+  const VALID_SECTIONS = {
+    categories: ['services', 'counters', 'branches', 'webhooks'],
+    audit: ['log', 'shifts', 'access'],
+    settings: ['appearance', 'sound', 'display', 'automation', 'signage', 'advanced'],
+  }
   const [tab, setTab] = useState(initialTab)
+  // Derive section from the *current* tab. If the URL section param is valid
+  // for this tab, use it; otherwise fall back to the tab's default. This lets
+  // sidebar buttons (which only call setTab, not setSearchParams) work without
+  // leaving you on a section that doesn't exist for the new tab.
+  const section = (VALID_SECTIONS[tab]?.includes(sectionParam) ? sectionParam : null)
+    || sectionDefaults[tab]
+    || ''
+  const showSection = (id) => section === id
   const [confirmReset, setConfirmReset] = useState(false)
   const [transferModal, setTransferModal] = useState(null)
   const [noteModal, setNoteModal] = useState(null)
