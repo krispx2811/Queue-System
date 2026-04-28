@@ -334,6 +334,24 @@ io.on('connection', (socket) => {
     cb?.(ticket)
   })
 
+  socket.on('ticket:restore', ({ ticketNumber }, cb) => {
+    // Pull a served (or skipped) ticket back into the waiting queue at its
+    // current stage. Used when the operator accidentally completed a patient
+    // or needs to call them back from history.
+    const ticket = state.tickets.find(t => t.number === ticketNumber)
+    if (!ticket) { cb?.({ error: 'not found' }); return }
+    if (ticket.status === 'serving' || ticket.status === 'waiting') {
+      cb?.(ticket); return
+    }
+    ticket.status = 'waiting'
+    ticket.completedAt = null
+    ticket.counterId = null
+    ticket.calledAt = null
+    addAudit(state, 'ticket:restore', '', `#${ticket.number}`)
+    broadcast()
+    cb?.(ticket)
+  })
+
   socket.on('ticket:transferToRoom', ({ ticketNumber, toCounterId, fromCounterId }, cb) => {
     const ticket = transferToRoom(state, ticketNumber, toCounterId, fromCounterId)
     if (ticket) {

@@ -157,25 +157,36 @@ export default function Admin() {
       })[0] || null
   }, [counter, state.tickets, state.categories])
 
-  const [callConfirm, setCallConfirm] = useState(null) // null | { ticketNumber, displayNumber, ... }
+  // callConfirm: null | { ticket: <Ticket|null>, specific: boolean }
+  // - null: modal closed
+  // - { ticket: T, specific: false }: about to call the next-in-queue T (Call Next button)
+  // - { ticket: T, specific: true }: about to call the specific T from waiting list
+  // - { ticket: null }: no eligible patient at this counter's stages
+  const [callConfirm, setCallConfirm] = useState(null)
 
   const handleCallNext = useCallback(() => {
     if (!counterId) return
     const next = peekNextTicket()
-    if (!next) {
-      // Nothing to call — fire it through anyway so the server can update
-      // counter.currentTicket=null cleanly without showing a fake modal.
-      emit('ticket:call', { counterId })
+    setCallConfirm({ ticket: next, specific: false })
+  }, [counterId, peekNextTicket])
+
+  const handleCallSpecific = useCallback((ticket) => {
+    if (!counterId || !ticket) return
+    setCallConfirm({ ticket, specific: true })
+  }, [counterId])
+
+  const confirmCall = useCallback(() => {
+    if (!counterId || !callConfirm?.ticket) {
+      setCallConfirm(null)
       return
     }
-    setCallConfirm(next)
-  }, [counterId, emit, peekNextTicket])
-
-  const confirmCallNext = useCallback(() => {
-    if (!counterId) return
-    emit('ticket:call', { counterId })
+    if (callConfirm.specific) {
+      emit('ticket:call', { counterId, ticketNumber: callConfirm.ticket.number })
+    } else {
+      emit('ticket:call', { counterId })
+    }
     setCallConfirm(null)
-  }, [counterId, emit])
+  }, [counterId, emit, callConfirm])
 
   const handleRecall = useCallback(() => {
     if (!counterId) return
@@ -683,7 +694,7 @@ export default function Admin() {
                     <button
                       key={t.number}
                       className="adm-wait-row adm-wait-row--clickable"
-                      onClick={() => counterId && emit('ticket:call', { counterId, ticketNumber: t.number })}
+                      onClick={() => handleCallSpecific(t)}
                       disabled={!counterId || counter?.status === 'closed'}
                       title={counterId ? `Call ${t.displayNumber || padNumber(t.number)} to ${counter?.name}` : 'Join a counter to call a patient'}
                     >
@@ -701,12 +712,26 @@ export default function Admin() {
 
               <h3 className="adm-sidebar-title" style={{ marginTop: 20 }}>History</h3>
               <div className="adm-sidebar-list">
-                {served.sort((a, b) => b.completedAt - a.completedAt).slice(0, 20).map(t => (
-                  <div key={t.number} className="adm-wait-row">
-                    <span className="adm-wait-num">{(t.displayNumber || padNumber(t.number))}</span>
-                    <span className="adm-wait-time">{formatTime(t.completedAt)}</span>
-                  </div>
-                ))}
+                {served.sort((a, b) => b.completedAt - a.completedAt).slice(0, 20).map(t => {
+                  const cat = state.categories.find(c => c.id === t.categoryId)
+                  const stage = cat?.stages?.[t.currentStage || 0]
+                  return (
+                    <div key={t.number} className="adm-wait-row" style={{ gap: 6 }}>
+                      <span className="adm-wait-num">{(t.displayNumber || padNumber(t.number))}</span>
+                      {t.notes && <span style={{ fontSize: 10, color: 'var(--gray-1)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.notes}</span>}
+                      {!t.notes && stage && <span className="adm-wait-stage" style={{ flex: 1 }}>{stage.name}</span>}
+                      <span className="adm-wait-time">{formatTime(t.completedAt)}</span>
+                      <button
+                        className="adm-held-resume"
+                        onClick={() => emitVoid('ticket:restore', { ticketNumber: t.number })}
+                        title="Bring back to waiting queue"
+                      >
+                        ↺
+                      </button>
+                    </div>
+                  )
+                })}
+                {served.length === 0 && <p className="adm-empty">No history yet</p>}
               </div>
             </div>
           </div>
@@ -1570,38 +1595,54 @@ export default function Admin() {
       {/* Modals */}
       <AnimatePresence>
         {callConfirm && (() => {
-          const cat = state.categories.find(c => c.id === callConfirm.categoryId)
-          const stage = cat?.stages?.[callConfirm.currentStage || 0]
+          const t = callConfirm.ticket
+          const cat = t ? state.categories.find(c => c.id === t.categoryId) : null
+          const stage = cat?.stages?.[t?.currentStage || 0]
           return (
             <motion.div className="adm-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setCallConfirm(null)}>
               <motion.div className="adm-modal" initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
                 onClick={e => e.stopPropagation()}>
-                <h3>Call this patient?</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 0' }}>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 32, fontWeight: 800, color: 'var(--white)' }}>
-                    {callConfirm.displayNumber || padNumber(callConfirm.number)}
-                  </div>
-                  {cat && (
-                    <div style={{ fontSize: 13, color: cat.color, fontWeight: 600 }}>{cat.name}</div>
-                  )}
-                  {stage && (
-                    <div style={{ fontSize: 11, color: 'var(--gray-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      Stage: {stage.name}
+                {t ? (
+                  <>
+                    <h3>{callConfirm.specific ? 'Call this patient?' : 'Call next patient?'}</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 0' }}>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 32, fontWeight: 800, color: 'var(--white)' }}>
+                        {t.displayNumber || padNumber(t.number)}
+                      </div>
+                      {cat && (
+                        <div style={{ fontSize: 13, color: cat.color, fontWeight: 600 }}>{cat.name}</div>
+                      )}
+                      {stage && (
+                        <div style={{ fontSize: 11, color: 'var(--gray-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          Stage: {stage.name}
+                        </div>
+                      )}
+                      {t.notes && (
+                        <div style={{ fontSize: 12, color: 'var(--gray-1)', marginTop: 4 }}>
+                          Patient: {t.notes}
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {callConfirm.notes && (
-                    <div style={{ fontSize: 12, color: 'var(--gray-1)', marginTop: 4 }}>
-                      Patient: {callConfirm.notes}
+                    <div className="adm-modal-btns">
+                      <button className="adm-modal-btn" onClick={() => setCallConfirm(null)}>Cancel</button>
+                      <button className="adm-modal-btn adm-modal-btn--primary" onClick={confirmCall} autoFocus>
+                        Call
+                      </button>
                     </div>
-                  )}
-                </div>
-                <div className="adm-modal-btns">
-                  <button className="adm-modal-btn" onClick={() => setCallConfirm(null)}>Cancel</button>
-                  <button className="adm-modal-btn adm-modal-btn--primary" onClick={confirmCallNext} autoFocus>
-                    Call
-                  </button>
-                </div>
+                  </>
+                ) : (
+                  <>
+                    <h3>No patient to call</h3>
+                    <p style={{ fontSize: 13, color: 'var(--gray-2)', padding: '12px 0' }}>
+                      No waiting patient matches this counter's stages. Click a patient in the
+                      Waiting list on the right to call them anyway.
+                    </p>
+                    <div className="adm-modal-btns">
+                      <button className="adm-modal-btn adm-modal-btn--primary" onClick={() => setCallConfirm(null)} autoFocus>OK</button>
+                    </div>
+                  </>
+                )}
               </motion.div>
             </motion.div>
           )
