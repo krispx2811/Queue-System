@@ -1598,48 +1598,65 @@ export default function Admin() {
           const t = callConfirm.ticket
           const cat = t ? state.categories.find(c => c.id === t.categoryId) : null
           const stage = cat?.stages?.[t?.currentStage || 0]
+          // The current patient (if any) gets auto-advanced or auto-completed by the
+          // server when Call Next fires; show what's about to happen to them too.
+          const curCat = currentTicket ? state.categories.find(c => c.id === currentTicket.categoryId) : null
+          const curStages = curCat?.stages || []
+          const curStageIdx = currentTicket?.currentStage || 0
+          const curStage = curStages[curStageIdx]
+          const curHandled = !counter?.stageIds?.length || (curStage && counter.stageIds.includes(curStage.id))
+          const curWillAdvance = currentTicket && curHandled && curStageIdx + 1 < curStages.length
+          const curNextStage = curWillAdvance ? curStages[curStageIdx + 1] : null
+          // Show modal as a meaningful action whenever there's *something* to do.
+          const nothingToDo = !t && !currentTicket
           return (
             <motion.div className="adm-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setCallConfirm(null)}>
               <motion.div className="adm-modal" initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
                 onClick={e => e.stopPropagation()}>
-                {t ? (
+                {nothingToDo ? (
                   <>
-                    <h3>{callConfirm.specific ? 'Call this patient?' : 'Call next patient?'}</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 0' }}>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 32, fontWeight: 800, color: 'var(--white)' }}>
-                        {t.displayNumber || padNumber(t.number)}
-                      </div>
-                      {cat && (
-                        <div style={{ fontSize: 13, color: cat.color, fontWeight: 600 }}>{cat.name}</div>
-                      )}
-                      {stage && (
-                        <div style={{ fontSize: 11, color: 'var(--gray-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                          Stage: {stage.name}
-                        </div>
-                      )}
-                      {t.notes && (
-                        <div style={{ fontSize: 12, color: 'var(--gray-1)', marginTop: 4 }}>
-                          Patient: {t.notes}
-                        </div>
-                      )}
-                    </div>
+                    <h3>Nothing to do</h3>
+                    <p style={{ fontSize: 13, color: 'var(--gray-2)', padding: '12px 0' }}>
+                      No waiting patient matches this counter's stages, and no patient is being
+                      served. Click a patient in the Waiting list to call them directly.
+                    </p>
                     <div className="adm-modal-btns">
-                      <button className="adm-modal-btn" onClick={() => setCallConfirm(null)}>Cancel</button>
-                      <button className="adm-modal-btn adm-modal-btn--primary" onClick={confirmCall} autoFocus>
-                        Call
-                      </button>
+                      <button className="adm-modal-btn adm-modal-btn--primary" onClick={() => setCallConfirm(null)} autoFocus>OK</button>
                     </div>
                   </>
                 ) : (
                   <>
-                    <h3>No patient to call</h3>
-                    <p style={{ fontSize: 13, color: 'var(--gray-2)', padding: '12px 0' }}>
-                      No waiting patient matches this counter's stages. Click a patient in the
-                      Waiting list on the right to call them anyway.
-                    </p>
+                    <h3>{t
+                      ? (callConfirm.specific ? 'Call this patient?' : 'Call next patient?')
+                      : (curWillAdvance ? `Send to ${curNextStage.name}?` : 'Finish with this patient?')
+                    }</h3>
+                    {t && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 0' }}>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 32, fontWeight: 800, color: 'var(--white)' }}>
+                          {t.displayNumber || padNumber(t.number)}
+                        </div>
+                        {cat && <div style={{ fontSize: 13, color: cat.color, fontWeight: 600 }}>{cat.name}</div>}
+                        {stage && (
+                          <div style={{ fontSize: 11, color: 'var(--gray-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                            Stage: {stage.name}
+                          </div>
+                        )}
+                        {t.notes && <div style={{ fontSize: 12, color: 'var(--gray-1)', marginTop: 4 }}>Patient: {t.notes}</div>}
+                      </div>
+                    )}
+                    {currentTicket && (
+                      <p style={{ fontSize: 12, color: 'var(--gray-2)', padding: '8px 0', borderTop: t ? '1px solid var(--border)' : 'none', marginTop: t ? 8 : 0 }}>
+                        {curWillAdvance
+                          ? `Current patient ${currentTicket.displayNumber || padNumber(currentTicket.number)} → ${curNextStage.name}`
+                          : `Current patient ${currentTicket.displayNumber || padNumber(currentTicket.number)} will be marked done`}
+                      </p>
+                    )}
                     <div className="adm-modal-btns">
-                      <button className="adm-modal-btn adm-modal-btn--primary" onClick={() => setCallConfirm(null)} autoFocus>OK</button>
+                      <button className="adm-modal-btn" onClick={() => setCallConfirm(null)}>Cancel</button>
+                      <button className="adm-modal-btn adm-modal-btn--primary" onClick={confirmCall} autoFocus>
+                        {t ? 'Call' : (curWillAdvance ? `Send to ${curNextStage.name}` : 'Finish')}
+                      </button>
                     </div>
                   </>
                 )}
