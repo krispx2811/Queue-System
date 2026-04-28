@@ -132,9 +132,49 @@ export default function Admin() {
     emitVoid('counter:register', { counterId, operatorName: operatorName.trim() })
   }
 
+  // Compute the ticket the server would pick on a plain Call Next so we can
+  // show it in the confirmation modal. Mirrors the filter in callNext on the
+  // server (forced > category > stage > number ascending).
+  const peekNextTicket = useCallback(() => {
+    if (!counter) return null
+    const validCategories = counter.categoryIds.length > 0 ? counter.categoryIds : state.categories.map(c => c.id)
+    return state.tickets
+      .filter(t => {
+        if (t.status !== 'waiting') return false
+        if (t.forcedCounterId) return t.forcedCounterId === counter.id
+        if (!validCategories.includes(t.categoryId)) return false
+        if (counter.stageIds && counter.stageIds.length > 0) {
+          const cat = state.categories.find(c => c.id === t.categoryId)
+          const ticketStage = cat?.stages?.[t.currentStage || 0]
+          if (!ticketStage || !counter.stageIds.includes(ticketStage.id)) return false
+        }
+        return true
+      })
+      .sort((a, b) => {
+        if (a.forcedCounterId && !b.forcedCounterId) return -1
+        if (b.forcedCounterId && !a.forcedCounterId) return 1
+        return a.number - b.number
+      })[0] || null
+  }, [counter, state.tickets, state.categories])
+
+  const [callConfirm, setCallConfirm] = useState(null) // null | { ticketNumber, displayNumber, ... }
+
   const handleCallNext = useCallback(() => {
     if (!counterId) return
+    const next = peekNextTicket()
+    if (!next) {
+      // Nothing to call — fire it through anyway so the server can update
+      // counter.currentTicket=null cleanly without showing a fake modal.
+      emit('ticket:call', { counterId })
+      return
+    }
+    setCallConfirm(next)
+  }, [counterId, emit, peekNextTicket])
+
+  const confirmCallNext = useCallback(() => {
+    if (!counterId) return
     emit('ticket:call', { counterId })
+    setCallConfirm(null)
   }, [counterId, emit])
 
   const handleRecall = useCallback(() => {
@@ -573,19 +613,36 @@ export default function Admin() {
                 </button>
               </div>
 
+              {/* Patient name (stored in the notes field — single text per
+                  ticket, repurposed as patient name in the UI). Shows up on
+                  the Display so other counters can verify. */}
+              {currentTicket && (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
+                  <input
+                    className="adm-input"
+                    type="text"
+                    placeholder="Patient name (optional)"
+                    defaultValue={currentTicket.notes || ''}
+                    key={`name-${currentTicket.number}`}
+                    onBlur={e => {
+                      const val = e.target.value.trim()
+                      if (val !== (currentTicket.notes || '')) {
+                        emitVoid('ticket:note', { ticketNumber: currentTicket.number, note: val })
+                      }
+                    }}
+                    onKeyDown={e => { if (e.key === 'Enter') e.target.blur() }}
+                    style={{ flex: 1 }}
+                  />
+                </div>
+              )}
+
               {/* Current ticket actions */}
               {currentTicket && (
                 <div className="adm-ticket-actions">
                   <button className="adm-act adm-act--sm" onClick={() => setTransferModal(currentTicket)}>
                     Transfer
                   </button>
-                  <button className="adm-act adm-act--sm" onClick={() => { setNoteModal(currentTicket); setNoteText(currentTicket.notes || '') }}>
-                    {currentTicket.notes ? 'Edit Note' : 'Add Note'}
-                  </button>
                 </div>
-              )}
-              {currentTicket?.notes && (
-                <div className="adm-note-preview">Note: {currentTicket.notes}</div>
               )}
 
               {/* Held tickets */}
@@ -1512,6 +1569,44 @@ export default function Admin() {
 
       {/* Modals */}
       <AnimatePresence>
+        {callConfirm && (() => {
+          const cat = state.categories.find(c => c.id === callConfirm.categoryId)
+          const stage = cat?.stages?.[callConfirm.currentStage || 0]
+          return (
+            <motion.div className="adm-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setCallConfirm(null)}>
+              <motion.div className="adm-modal" initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+                onClick={e => e.stopPropagation()}>
+                <h3>Call this patient?</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 0' }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 32, fontWeight: 800, color: 'var(--white)' }}>
+                    {callConfirm.displayNumber || padNumber(callConfirm.number)}
+                  </div>
+                  {cat && (
+                    <div style={{ fontSize: 13, color: cat.color, fontWeight: 600 }}>{cat.name}</div>
+                  )}
+                  {stage && (
+                    <div style={{ fontSize: 11, color: 'var(--gray-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      Stage: {stage.name}
+                    </div>
+                  )}
+                  {callConfirm.notes && (
+                    <div style={{ fontSize: 12, color: 'var(--gray-1)', marginTop: 4 }}>
+                      Patient: {callConfirm.notes}
+                    </div>
+                  )}
+                </div>
+                <div className="adm-modal-btns">
+                  <button className="adm-modal-btn" onClick={() => setCallConfirm(null)}>Cancel</button>
+                  <button className="adm-modal-btn adm-modal-btn--primary" onClick={confirmCallNext} autoFocus>
+                    Call
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )
+        })()}
+
         {confirmReset && (
           <motion.div className="adm-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <motion.div className="adm-modal" initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}>

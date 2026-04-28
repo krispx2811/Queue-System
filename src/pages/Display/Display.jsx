@@ -463,7 +463,14 @@ export default function Display() {
                   return (
                     <motion.div key={counter.id} className="dsp-board-row dsp-board-row--serving"
                       initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} layout>
-                      <span className="dsp-board-cell dsp-board-num">{(ticket.displayNumber || padNumber(ticket.number))}</span>
+                      <span className="dsp-board-cell dsp-board-num">
+                        {(ticket.displayNumber || padNumber(ticket.number))}
+                        {ticket.notes && (
+                          <span style={{ display: 'block', fontSize: '0.45em', fontWeight: 500, color: 'var(--gray-1)', marginTop: 4, fontFamily: 'var(--font)' }}>
+                            {ticket.notes}
+                          </span>
+                        )}
+                      </span>
                       <span className="dsp-board-cell" style={{ color: cat?.color }}>{cat?.name || '—'}</span>
                       <span className="dsp-board-cell">{counter.name}</span>
                       <span className="dsp-board-cell dsp-board-status--now">NOW</span>
@@ -475,7 +482,14 @@ export default function Display() {
                   return (
                     <motion.div key={tk.number} className="dsp-board-row"
                       initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.04 }}>
-                      <span className="dsp-board-cell dsp-board-num">{(tk.displayNumber || padNumber(tk.number))}</span>
+                      <span className="dsp-board-cell dsp-board-num">
+                        {(tk.displayNumber || padNumber(tk.number))}
+                        {tk.notes && (
+                          <span style={{ display: 'block', fontSize: '0.45em', fontWeight: 500, color: 'var(--gray-2)', marginTop: 4, fontFamily: 'var(--font)' }}>
+                            {tk.notes}
+                          </span>
+                        )}
+                      </span>
                       <span className="dsp-board-cell" style={{ color: cat?.color }}>{cat?.name || '—'}</span>
                       <span className="dsp-board-cell">—</span>
                       <span className="dsp-board-cell dsp-board-status--wait">WAIT</span>
