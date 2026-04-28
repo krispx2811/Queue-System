@@ -176,11 +176,11 @@ export default function Admin() {
   }, [counterId])
 
   const confirmCall = useCallback(() => {
-    if (!counterId || !callConfirm?.ticket) {
-      setCallConfirm(null)
-      return
-    }
-    if (callConfirm.specific) {
+    if (!counterId) { setCallConfirm(null); return }
+    // ticket may be null — that means "no next-in-queue, but auto-advance the
+    // current patient." We still fire ticket:call so the server can run
+    // autoMoveCurrent. Only the specific-pick path needs ticketNumber.
+    if (callConfirm?.specific && callConfirm.ticket) {
       emit('ticket:call', { counterId, ticketNumber: callConfirm.ticket.number })
     } else {
       emit('ticket:call', { counterId })
